@@ -6,6 +6,7 @@ interface Child {
   name: string;
   age: string;
   gender: string;
+  bForm: string;
 }
 
 interface MemberFormProps {
@@ -26,7 +27,7 @@ const inputStyle = {
 
 const labelStyle = {
   fontSize: '0.85rem',
-  fontWeight: '600',
+  fontWeight: '600' as const,
   color: 'var(--green-dark)',
   marginBottom: '4px',
   display: 'block',
@@ -36,15 +37,14 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
   const [form, setForm] = useState({
     name: '',
     fatherName: '',
+    cast: '',
     dateOfBirth: '',
-    age: '',
     gender: 'Male',
     cnic: '',
+    bForm: '',
     phone: '',
     email: '',
     address: '',
-    area: '',
-    bloodGroup: '',
     occupation: '',
     maritalStatus: 'Unmarried',
     wifeName: '',
@@ -53,12 +53,23 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
 
   const [children, setChildren] = useState<Child[]>([]);
 
+  // Calculate age from date of birth
+  const getAge = (dob: string) => {
+    if (!dob) return 0;
+    const today = new Date();
+    const birth = new Date(dob);
+    return today.getFullYear() - birth.getFullYear();
+  };
+
+  const age = getAge(form.dateOfBirth);
+  const isUnder18 = age < 18 && age > 0;
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
   const addChild = () => {
-    setChildren([...children, { name: '', age: '', gender: 'Male' }]);
+    setChildren([...children, { name: '', age: '', gender: 'Male', bForm: '' }]);
   };
 
   const updateChild = (index: number, field: string, value: string) => {
@@ -73,7 +84,7 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({ ...form, age: parseInt(form.age), children });
+    onSubmit({ ...form, children });
   };
 
   return (
@@ -97,10 +108,29 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
         overflowY: 'auto',
         boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
       }}>
-        <h2 style={{ marginBottom: '1.5rem', fontSize: '1.4rem' }}>➕ New Member Add Karein</h2>
+        <h2 style={{ marginBottom: '1.5rem', fontSize: '1.4rem' }}>➕ Add New Member</h2>
+
+        {/* Age Preview */}
+        {form.dateOfBirth && (
+          <div style={{
+            backgroundColor: isUnder18 ? '#e3f2fd' : 'var(--green-pale)',
+            border: `1px solid ${isUnder18 ? '#90caf9' : 'var(--green-border)'}`,
+            borderRadius: '8px',
+            padding: '10px 16px',
+            marginBottom: '1rem',
+            fontSize: '0.9rem',
+            fontWeight: '600',
+            color: isUnder18 ? '#1565c0' : 'var(--green-dark)',
+          }}>
+            {isUnder18
+              ? `👦 Age: ${age} - Under 18 Category (B-Form required)`
+              : age >= 60
+              ? `👴 Age: ${age} - Senior Citizen Category`
+              : `🧑 Age: ${age} - Adult Category`}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit}>
-
           {/* Basic Info */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
             <div>
@@ -109,15 +139,15 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
             </div>
             <div>
               <label style={labelStyle}>Father's Name *</label>
-              <input style={inputStyle} name="fatherName" value={form.fatherName} onChange={handleChange} required placeholder="Father ka naam" />
+              <input style={inputStyle} name="fatherName" value={form.fatherName} onChange={handleChange} required placeholder="Father's name" />
             </div>
             <div>
-              <label style={labelStyle}>Age *</label>
-              <input style={inputStyle} name="age" type="number" value={form.age} onChange={handleChange} required placeholder="e.g. 23" />
+              <label style={labelStyle}>Cast *</label>
+              <input style={inputStyle} name="cast" value={form.cast} onChange={handleChange} required placeholder="e.g. Memon" />
             </div>
             <div>
-              <label style={labelStyle}>Date of Birth</label>
-              <input style={inputStyle} name="dateOfBirth" type="date" value={form.dateOfBirth} onChange={handleChange} />
+              <label style={labelStyle}>Date of Birth *</label>
+              <input style={inputStyle} name="dateOfBirth" type="date" value={form.dateOfBirth} onChange={handleChange} required />
             </div>
             <div>
               <label style={labelStyle}>Gender *</label>
@@ -126,10 +156,20 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
                 <option>Female</option>
               </select>
             </div>
+
+            {/* CNIC or B-Form based on age */}
             <div>
-              <label style={labelStyle}>CNIC *</label>
-              <input style={inputStyle} name="cnic" value={form.cnic} onChange={handleChange} required placeholder="42101-1234567-1" />
+              <label style={labelStyle}>{isUnder18 ? 'B-Form Number *' : 'CNIC Number *'}</label>
+              <input
+                style={inputStyle}
+                name={isUnder18 ? 'bForm' : 'cnic'}
+                value={isUnder18 ? form.bForm : form.cnic}
+                onChange={handleChange}
+                required
+                placeholder={isUnder18 ? 'B-Form number' : '42101-1234567-1'}
+              />
             </div>
+
             <div>
               <label style={labelStyle}>Phone *</label>
               <input style={inputStyle} name="phone" value={form.phone} onChange={handleChange} required placeholder="03XX-XXXXXXX" />
@@ -139,102 +179,89 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
               <input style={inputStyle} name="email" type="email" value={form.email} onChange={handleChange} placeholder="email@example.com" />
             </div>
             <div>
-              <label style={labelStyle}>Blood Group</label>
-              <select style={inputStyle} name="bloodGroup" value={form.bloodGroup} onChange={handleChange}>
-                <option value="">Select</option>
-                {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(bg => (
-                  <option key={bg}>{bg}</option>
-                ))}
-              </select>
-            </div>
-            <div>
               <label style={labelStyle}>Occupation</label>
               <input style={inputStyle} name="occupation" value={form.occupation} onChange={handleChange} placeholder="e.g. Business, Job" />
             </div>
-          </div>
-
-          {/* Address */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
             <div>
               <label style={labelStyle}>Address</label>
-              <input style={inputStyle} name="address" value={form.address} onChange={handleChange} placeholder="Ghar ka address" />
-            </div>
-            <div>
-              <label style={labelStyle}>Area (Karachi)</label>
-              <input style={inputStyle} name="area" value={form.area} onChange={handleChange} placeholder="e.g. Kharadar, Jodia Bazaar" />
+              <input style={inputStyle} name="address" value={form.address} onChange={handleChange} placeholder="Home address" />
             </div>
           </div>
 
-          {/* Marital Status */}
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={labelStyle}>Marital Status *</label>
-            <select style={{ ...inputStyle, width: 'auto', minWidth: '200px' }} name="maritalStatus" value={form.maritalStatus} onChange={handleChange}>
-              <option>Unmarried</option>
-              <option>Married</option>
-            </select>
-          </div>
-
-          {/* Married Fields */}
-          {form.maritalStatus === 'Married' && (
-            <div style={{
-              backgroundColor: 'var(--green-pale)',
-              padding: '1rem',
-              borderRadius: 'var(--radius)',
-              marginBottom: '1rem',
-              border: '1px solid var(--green-border)',
-            }}>
-              <h3 style={{ marginBottom: '1rem', fontSize: '1rem' }}>👨‍👩‍👧 Family Details</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                <div>
-                  <label style={labelStyle}>Wife's Name</label>
-                  <input style={inputStyle} name="wifeName" value={form.wifeName} onChange={handleChange} placeholder="Wife ka naam" />
-                </div>
-                <div>
-                  <label style={labelStyle}>Wife's CNIC</label>
-                  <input style={inputStyle} name="wifeCnic" value={form.wifeCnic} onChange={handleChange} placeholder="42101-1234567-1" />
-                </div>
+          {/* Marital Status - only for 18+ */}
+          {!isUnder18 && (
+            <>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={labelStyle}>Marital Status *</label>
+                <select style={{ ...inputStyle, width: 'auto', minWidth: '200px' }} name="maritalStatus" value={form.maritalStatus} onChange={handleChange}>
+                  <option>Unmarried</option>
+                  <option>Married</option>
+                </select>
               </div>
 
-              {/* Children */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  <label style={labelStyle}>Children ({children.length})</label>
-                  <button type="button" onClick={addChild} style={{
-                    backgroundColor: 'var(--green-main)',
-                    color: 'white',
-                    border: 'none',
-                    padding: '6px 14px',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    fontSize: '0.85rem',
-                  }}>+ Add Child</button>
-                </div>
-                {children.map((child, index) => (
-                  <div key={index} style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr 1fr auto',
-                    gap: '0.5rem',
-                    marginBottom: '0.5rem',
-                    alignItems: 'center',
-                  }}>
-                    <input style={inputStyle} placeholder="Child ka naam" value={child.name} onChange={(e) => updateChild(index, 'name', e.target.value)} />
-                    <input style={inputStyle} placeholder="Age" type="number" value={child.age} onChange={(e) => updateChild(index, 'age', e.target.value)} />
-                    <select style={inputStyle} value={child.gender} onChange={(e) => updateChild(index, 'gender', e.target.value)}>
-                      <option>Male</option>
-                      <option>Female</option>
-                    </select>
-                    <button type="button" onClick={() => removeChild(index)} style={{
-                      background: '#ff4444',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      padding: '8px 12px',
-                      cursor: 'pointer',
-                    }}>✕</button>
+              {form.maritalStatus === 'Married' && (
+                <div style={{
+                  backgroundColor: 'var(--green-pale)',
+                  padding: '1rem',
+                  borderRadius: 'var(--radius)',
+                  marginBottom: '1rem',
+                  border: '1px solid var(--green-border)',
+                }}>
+                  <h3 style={{ marginBottom: '1rem', fontSize: '1rem' }}>👨‍👩‍👧 Family Details</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                    <div>
+                      <label style={labelStyle}>Wife's Name</label>
+                      <input style={inputStyle} name="wifeName" value={form.wifeName} onChange={handleChange} placeholder="Wife's name" />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Wife's CNIC</label>
+                      <input style={inputStyle} name="wifeCnic" value={form.wifeCnic} onChange={handleChange} placeholder="42101-1234567-1" />
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
+
+                  {/* Children */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <label style={labelStyle}>Children ({children.length})</label>
+                      <button type="button" onClick={addChild} style={{
+                        backgroundColor: 'var(--green-main)',
+                        color: 'white',
+                        border: 'none',
+                        padding: '6px 14px',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '0.85rem',
+                      }}>+ Add Child</button>
+                    </div>
+                    {children.map((child, index) => (
+                      <div key={index} style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr 1fr 1fr auto',
+                        gap: '0.5rem',
+                        marginBottom: '0.5rem',
+                        alignItems: 'center',
+                      }}>
+                        <input style={inputStyle} placeholder="Child's name" value={child.name} onChange={(e) => updateChild(index, 'name', e.target.value)} />
+                        <input style={inputStyle} placeholder="Age" type="number" value={child.age} onChange={(e) => updateChild(index, 'age', e.target.value)} />
+                        <select style={inputStyle} value={child.gender} onChange={(e) => updateChild(index, 'gender', e.target.value)}>
+                          <option>Male</option>
+                          <option>Female</option>
+                        </select>
+                        <input style={inputStyle} placeholder="B-Form (optional)" value={child.bForm} onChange={(e) => updateChild(index, 'bForm', e.target.value)} />
+                        <button type="button" onClick={() => removeChild(index)} style={{
+                          background: '#ff4444',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          padding: '8px 12px',
+                          cursor: 'pointer',
+                        }}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {/* Buttons */}
@@ -256,9 +283,8 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
               cursor: 'pointer',
               fontSize: '0.95rem',
               fontWeight: '600',
-            }}>✅ Member Add Karein</button>
+            }}>✅ Add Member</button>
           </div>
-
         </form>
       </div>
     </div>

@@ -7,11 +7,15 @@ interface Member {
   name: string;
   age: number;
   cnic: string;
+  bForm: string;
   phone: string;
-  area: string;
+  cast: string;
+  fatherName: string;
   maritalStatus: string;
   votingEligible: boolean;
   occupation: string;
+  category: string;
+  entryDate: string;
 }
 
 interface MemberTableProps {
@@ -34,7 +38,7 @@ const MemberTable = ({ members }: MemberTableProps) => {
       }}>
         <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>👥</div>
         <h3>No Members Found</h3>
-        <p style={{ fontSize: '0.9rem', marginTop: '0.5rem' }}>Upar "Add Member" button se member add karein</p>
+        <p style={{ fontSize: '0.9rem', marginTop: '0.5rem' }}>Click "Add Member" button above to add a new member</p>
       </div>
     );
   }
@@ -61,7 +65,7 @@ const MemberTable = ({ members }: MemberTableProps) => {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ backgroundColor: 'var(--green-pale)' }}>
-              {['Member ID', 'Name', 'Age', 'CNIC', 'Phone', 'Area', 'Status', 'Voting', 'Action'].map((h) => (
+              {['Member ID', 'Name', 'Father Name', 'Cast', 'Age', 'CNIC/B-Form', 'Phone', 'Category', 'Voting', 'Entry Date', 'Action'].map((h) => (
                 <th key={h} style={{
                   padding: '12px 16px',
                   textAlign: 'left',
@@ -75,30 +79,31 @@ const MemberTable = ({ members }: MemberTableProps) => {
           </thead>
           <tbody>
             {members.map((member, index) => (
-              <tr key={member.id} style={{
-                borderBottom: '1px solid var(--green-pale)',
-                backgroundColor: index % 2 === 0 ? 'var(--white)' : '#f9fdfb',
-                transition: 'background 0.2s',
-              }}
+              <tr key={member.id}
+                style={{
+                  borderBottom: '1px solid var(--green-pale)',
+                  backgroundColor: index % 2 === 0 ? 'var(--white)' : '#f9fdfb',
+                  transition: 'background 0.2s',
+                }}
                 onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--green-pale)')}
                 onMouseLeave={e => (e.currentTarget.style.backgroundColor = index % 2 === 0 ? 'var(--white)' : '#f9fdfb')}
               >
                 <td style={{ padding: '12px 16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--green-main)' }}>{member.id}</td>
                 <td style={{ padding: '12px 16px', fontSize: '0.9rem', fontWeight: '500' }}>{member.name}</td>
+                <td style={{ padding: '12px 16px', fontSize: '0.85rem' }}>{member.father_name}</td>                <td style={{ padding: '12px 16px', fontSize: '0.85rem' }}>{member.member_cast}</td>
                 <td style={{ padding: '12px 16px', fontSize: '0.9rem' }}>{member.age}</td>
-                <td style={{ padding: '12px 16px', fontSize: '0.85rem', color: 'var(--gray-text)' }}>{member.cnic}</td>
+                <td style={{ padding: '12px 16px', fontSize: '0.85rem', color: 'var(--gray-text)' }}>{member.cnic || member.bForm}</td>
                 <td style={{ padding: '12px 16px', fontSize: '0.85rem' }}>{member.phone}</td>
-                <td style={{ padding: '12px 16px', fontSize: '0.85rem' }}>{member.area || '-'}</td>
                 <td style={{ padding: '12px 16px' }}>
                   <span style={{
                     padding: '4px 10px',
                     borderRadius: '20px',
                     fontSize: '0.78rem',
                     fontWeight: '600',
-                    backgroundColor: member.maritalStatus === 'Married' ? '#e8f5ee' : '#fff3e0',
-                    color: member.maritalStatus === 'Married' ? 'var(--green-dark)' : '#e65100',
+                    backgroundColor: member.category === 'under18' ? '#e3f2fd' : member.category === 'senior' ? '#fff3e0' : '#e8f5ee',
+                    color: member.category === 'under18' ? '#1565c0' : member.category === 'senior' ? '#e65100' : 'var(--green-dark)',
                   }}>
-                    {member.maritalStatus}
+                    {member.category === 'under18' ? '👦 Under 18' : member.category === 'senior' ? '👴 Senior' : '🧑 Adult'}
                   </span>
                 </td>
                 <td style={{ padding: '12px 16px' }}>
@@ -113,6 +118,7 @@ const MemberTable = ({ members }: MemberTableProps) => {
                     {member.votingEligible ? '✅ Eligible' : '❌ Not Eligible'}
                   </span>
                 </td>
+                <td style={{ padding: '12px 16px', fontSize: '0.85rem', color: 'var(--gray-text)' }}>{member.entryDate}</td>
                 <td style={{ padding: '12px 16px' }}>
                   <button
                     onClick={() => router.push(`/members/${member.id}`)}
