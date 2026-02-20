@@ -7,15 +7,15 @@ interface Member {
   name: string;
   age: number;
   cnic: string;
-  bForm: string;
+  b_form: string;
   phone: string;
-  cast: string;
-  fatherName: string;
-  maritalStatus: string;
-  votingEligible: boolean;
+  member_cast: string;
+  father_name: string;
+  marital_status: string;
+  voting_eligible: boolean;
   occupation: string;
   category: string;
-  entryDate: string;
+  entry_date: string;
 }
 
 interface MemberTableProps {
