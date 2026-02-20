@@ -90,9 +90,10 @@ const MemberTable = ({ members }: MemberTableProps) => {
               >
                 <td style={{ padding: '12px 16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--green-main)' }}>{member.id}</td>
                 <td style={{ padding: '12px 16px', fontSize: '0.9rem', fontWeight: '500' }}>{member.name}</td>
-                <td style={{ padding: '12px 16px', fontSize: '0.85rem' }}>{member.father_name}</td>                <td style={{ padding: '12px 16px', fontSize: '0.85rem' }}>{member.member_cast}</td>
+                <td style={{ padding: '12px 16px', fontSize: '0.85rem' }}>{member.father_name}</td>
+                <td style={{ padding: '12px 16px', fontSize: '0.85rem' }}>{member.member_cast}</td>
                 <td style={{ padding: '12px 16px', fontSize: '0.9rem' }}>{member.age}</td>
-                <td style={{ padding: '12px 16px', fontSize: '0.85rem', color: 'var(--gray-text)' }}>{member.cnic || member.bForm}</td>
+                <td style={{ padding: '12px 16px', fontSize: '0.85rem', color: 'var(--gray-text)' }}>{member.cnic || member.b_form || '-'}</td>
                 <td style={{ padding: '12px 16px', fontSize: '0.85rem' }}>{member.phone}</td>
                 <td style={{ padding: '12px 16px' }}>
                   <span style={{
@@ -112,16 +113,16 @@ const MemberTable = ({ members }: MemberTableProps) => {
                     borderRadius: '20px',
                     fontSize: '0.78rem',
                     fontWeight: '600',
-                    backgroundColor: member.votingEligible ? '#e8f5ee' : '#fce4e4',
-                    color: member.votingEligible ? 'var(--green-dark)' : '#c62828',
+                    backgroundColor: member.voting_eligible ? '#e8f5ee' : '#fce4e4',
+                    color: member.voting_eligible ? 'var(--green-dark)' : '#c62828',
                   }}>
-                    {member.votingEligible ? '✅ Eligible' : '❌ Not Eligible'}
+                    {member.voting_eligible ? '✅ Eligible' : '❌ Not Eligible'}
                   </span>
                 </td>
-                <td style={{ padding: '12px 16px', fontSize: '0.85rem', color: 'var(--gray-text)' }}>{member.entryDate}</td>
+                <td style={{ padding: '12px 16px', fontSize: '0.85rem', color: 'var(--gray-text)' }}>{member.entry_date}</td>
                 <td style={{ padding: '12px 16px' }}>
                   <button
-                    onClick={() => router.push(`/members/${member.id}`)}
+                    onClick={() => router.push(`/members/${encodeURIComponent(member.id)}`)}
                     style={{
                       backgroundColor: 'var(--green-main)',
                       color: 'white',
