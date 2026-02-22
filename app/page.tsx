@@ -17,14 +17,12 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Fetch members from Supabase
   const fetchMembers = async () => {
     setLoading(true);
     const { data, error } = await supabase.from('members').select('*').order('created_at', { ascending: false });
     if (error) {
       console.error('Error fetching members:', error);
     } else {
-      // Check for birthday notifications
       const newNotifications: string[] = [];
       const updated = await Promise.all((data || []).map(async (member) => {
         const age = calculateAge(member.date_of_birth);
@@ -34,7 +32,27 @@ export default function Home() {
         const isBirthdayToday =
           dob.getDate() === today.getDate() && dob.getMonth() === today.getMonth();
 
-        // Auto category transfer
+        // Birthday notification (any age)
+        if (isBirthdayToday) {
+          // Check if birthday notification already sent today
+          const todayStr = today.toISOString().split('T')[0];
+          const { data: existingNotif } = await supabase
+            .from('notifications')
+            .select('id')
+            .eq('type', 'birthday')
+            .like('message', `%${member.id}%`)
+            .gte('created_at', todayStr)
+            .single();
+
+          if (!existingNotif) {
+            await supabase.from('notifications').insert([{
+              message: `🎂 Happy Birthday! ${member.name} (${member.id}) is turning ${age} today!`,
+              type: 'birthday',
+            }]);
+            newNotifications.push(`🎂 ${member.name} is turning ${age} today!`);
+          }
+        }
+
         if (newCategory !== member.category) {
           await supabase.from('members').update({
             category: newCategory,
@@ -42,7 +60,6 @@ export default function Home() {
             age,
           }).eq('id', member.id);
 
-          // Save notification to Supabase
           if (isBirthdayToday && age === 18) {
             await supabase.from('notifications').insert([{
               message: `🎉 ${member.name} (${member.id}) is now 18 years old - moved to Adult category!`,
@@ -105,7 +122,6 @@ export default function Home() {
       console.error('Error adding member:', error);
       alert('Error adding member. Please try again.');
     } else {
-      // New member notification
       await supabase.from('notifications').insert([{
         message: `👤 New member added: ${newMember.name} (${newMember.id}) - Category: ${category}`,
         type: 'new_member',
@@ -120,21 +136,40 @@ export default function Home() {
   const seniors = members.filter((m) => m.category === 'senior');
   const voters = members.filter((m) => m.voting_eligible);
 
-  const cardStyle = (color: string) => ({
-    backgroundColor: 'var(--white)',
-    borderRadius: 'var(--radius)',
-    boxShadow: 'var(--shadow)',
-    padding: '1.5rem',
-    borderTop: `4px solid ${color}`,
-    textAlign: 'center' as const,
-    cursor: 'pointer',
-    transition: 'transform 0.2s',
-  });
-
   return (
     <main>
       <Navbar />
-      <div style={{ padding: '2rem', maxWidth: '1300px', margin: '0 auto' }}>
+
+      <style>{`
+        .category-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 1.5rem;
+          margin-bottom: 2rem;
+        }
+        @media (max-width: 768px) {
+          .category-grid {
+            grid-template-columns: 1fr !important;
+            gap: 1rem;
+          }
+          .page-padding {
+            padding: 1rem !important;
+          }
+          .top-bar {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+          }
+          .add-btn {
+            width: 100%;
+          }
+          .voter-box {
+            flex-direction: column !important;
+            gap: 0.5rem !important;
+          }
+        }
+      `}</style>
+
+      <div className="page-padding" style={{ padding: '2rem', maxWidth: '1300px', margin: '0 auto' }}>
 
         {/* Notifications */}
         {notifications.length > 0 && (
@@ -153,7 +188,7 @@ export default function Home() {
         )}
 
         {/* Top Bar */}
-        <div style={{
+        <div className="top-bar" style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -163,6 +198,7 @@ export default function Home() {
         }}>
           <h2 style={{ fontSize: '1.5rem' }}>Members Directory</h2>
           <button
+            className="add-btn"
             onClick={() => setShowForm(true)}
             style={{
               backgroundColor: 'var(--green-main)',
@@ -183,55 +219,43 @@ export default function Home() {
         <SearchBar onSearch={(q) => setSearchQuery(q)} />
 
         {/* 3 Category Boxes */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '1.5rem',
-          marginBottom: '2rem',
-        }}>
-          <div
-            style={cardStyle('#2196f3')}
-            onClick={() => router.push('/category/under18')}
-            onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-4px)')}
-            onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}
-          >
-            <div style={{ fontSize: '2rem' }}>👦</div>
-            <h3 style={{ color: '#1565c0', margin: '0.5rem 0' }}>Under 18</h3>
-            <p style={{ fontSize: '2rem', fontWeight: '700', color: '#1565c0' }}>{under18.length}</p>
-            <p style={{ fontSize: '0.85rem', color: 'var(--gray-text)' }}>Not eligible to vote</p>
-            <p style={{ fontSize: '0.78rem', color: '#1565c0', marginTop: '0.5rem' }}>Click to view →</p>
-          </div>
-
-          <div
-            style={cardStyle('var(--green-main)')}
-            onClick={() => router.push('/category/adult')}
-            onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-4px)')}
-            onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}
-          >
-            <div style={{ fontSize: '2rem' }}>🧑</div>
-            <h3 style={{ color: 'var(--green-dark)', margin: '0.5rem 0' }}>Adults (18+)</h3>
-            <p style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--green-dark)' }}>{adults.length}</p>
-            <p style={{ fontSize: '0.85rem', color: 'var(--gray-text)' }}>Eligible to vote</p>
-            <p style={{ fontSize: '0.78rem', color: 'var(--green-main)', marginTop: '0.5rem' }}>Click to view →</p>
-          </div>
-
-          <div
-            style={cardStyle('#ff9800')}
-            onClick={() => router.push('/category/senior')}
-            onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-4px)')}
-            onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}
-          >
-            <div style={{ fontSize: '2rem' }}>👴</div>
-            <h3 style={{ color: '#e65100', margin: '0.5rem 0' }}>Senior Citizens</h3>
-            <p style={{ fontSize: '2rem', fontWeight: '700', color: '#e65100' }}>{seniors.length}</p>
-            <p style={{ fontSize: '0.85rem', color: 'var(--gray-text)' }}>60+ years</p>
-            <p style={{ fontSize: '0.78rem', color: '#e65100', marginTop: '0.5rem' }}>Click to view →</p>
-          </div>
+        <div className="category-grid">
+          {[
+            { emoji: '👦', label: 'Under 18', count: under18.length, color: '#2196f3', textColor: '#1565c0', path: '/category/under18', sub: 'Not eligible to vote' },
+            { emoji: '🧑', label: 'Adults (18+)', count: adults.length, color: 'var(--green-main)', textColor: 'var(--green-dark)', path: '/category/adult', sub: 'Eligible to vote' },
+            { emoji: '👴', label: 'Senior Citizens', count: seniors.length, color: '#ff9800', textColor: '#e65100', path: '/category/senior', sub: '60+ years' },
+          ].map((cat) => (
+            <div
+              key={cat.path}
+              onClick={() => router.push(cat.path)}
+              onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-4px)')}
+              onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}
+              style={{
+                backgroundColor: 'var(--white)',
+                borderRadius: 'var(--radius)',
+                boxShadow: 'var(--shadow)',
+                padding: '1.5rem',
+                borderTop: `4px solid ${cat.color}`,
+                textAlign: 'center',
+                cursor: 'pointer',
+                transition: 'transform 0.2s',
+              }}
+            >
+              <div style={{ fontSize: '2rem' }}>{cat.emoji}</div>
+              <h3 style={{ color: cat.textColor, margin: '0.5rem 0' }}>{cat.label}</h3>
+              <p style={{ fontSize: '2rem', fontWeight: '700', color: cat.textColor }}>{cat.count}</p>
+              <p style={{ fontSize: '0.85rem', color: 'var(--gray-text)' }}>{cat.sub}</p>
+              <p style={{ fontSize: '0.78rem', color: cat.textColor, marginTop: '0.5rem' }}>Click to view →</p>
+            </div>
+          ))}
         </div>
 
         {/* Voter List Box */}
         <div
+          className="voter-box"
           onClick={() => router.push('/voters')}
+          onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-2px)')}
+          onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}
           style={{
             backgroundColor: 'var(--white)',
             borderRadius: 'var(--radius)',
@@ -245,8 +269,6 @@ export default function Home() {
             cursor: 'pointer',
             transition: 'transform 0.2s',
           }}
-          onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-2px)')}
-          onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}
         >
           <div>
             <h3 style={{ fontSize: '1rem' }}>🗳️ Voter List</h3>
@@ -272,16 +294,16 @@ export default function Home() {
 
         {/* All Members Table */}
         {!loading && (
-  <MemberTable
-    members={members.filter((m) =>
-      searchQuery
-        ? m.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          m.cnic?.toLowerCase().includes(searchQuery.toLowerCase())
-        : true
-    )}
-  />
-)}
+          <MemberTable
+            members={members.filter((m) =>
+              searchQuery
+                ? m.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  m.cnic?.toLowerCase().includes(searchQuery.toLowerCase())
+                : true
+            )}
+          />
+        )}
 
       </div>
     </main>

@@ -85,7 +85,8 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
       <Navbar />
       <div style={{ padding: '2rem', maxWidth: '900px', margin: '0 auto' }}>
 
-        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
+        {/* Buttons */}
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
           <button onClick={() => router.back()} style={{
             backgroundColor: 'var(--green-main)', color: 'white', border: 'none',
             padding: '10px 20px', borderRadius: 'var(--radius)', cursor: 'pointer',
@@ -96,6 +97,11 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
             padding: '10px 20px', borderRadius: 'var(--radius)', cursor: 'pointer',
             fontSize: '0.95rem', fontWeight: '600',
           }}>💰 Manage Fees</button>
+          <button onClick={() => router.push(`/edit/${encodeURIComponent(id)}`)} style={{
+            backgroundColor: '#e65100', color: 'white', border: 'none',
+            padding: '10px 20px', borderRadius: 'var(--radius)', cursor: 'pointer',
+            fontSize: '0.95rem', fontWeight: '600',
+          }}>✏️ Edit Member</button>
         </div>
 
         {loading && (
@@ -128,10 +134,8 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
               {/* Photo */}
               <div style={{ position: 'relative' }}>
                 <div style={{
-                  width: '90px', height: '90px',
-                  borderRadius: '50%',
-                  overflow: 'hidden',
-                  border: '3px solid var(--green-light)',
+                  width: '90px', height: '90px', borderRadius: '50%',
+                  overflow: 'hidden', border: '3px solid var(--green-light)',
                   backgroundColor: 'var(--green-light)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
@@ -143,22 +147,15 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
                     </span>
                   )}
                 </div>
-                {/* Upload Button */}
                 <label style={{
                   position: 'absolute', bottom: 0, right: 0,
-                  backgroundColor: 'var(--green-main)',
-                  borderRadius: '50%', width: '26px', height: '26px',
+                  backgroundColor: 'var(--green-main)', borderRadius: '50%',
+                  width: '26px', height: '26px',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', fontSize: '0.75rem',
-                  border: '2px solid white',
+                  cursor: 'pointer', fontSize: '0.75rem', border: '2px solid white',
                 }}>
                   {uploading ? '⏳' : '📷'}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handlePhotoUpload}
-                    style={{ display: 'none' }}
-                  />
+                  <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} />
                 </label>
               </div>
 

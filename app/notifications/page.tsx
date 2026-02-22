@@ -42,6 +42,7 @@ export default function NotificationsPage() {
     if (type === 'adult') return '🧑';
     if (type === 'senior') return '👴';
     if (type === 'new_member') return '👤';
+    if (type === 'birthday') return '🎂';
     return '🔔';
   };
 
@@ -50,6 +51,7 @@ export default function NotificationsPage() {
     if (type === 'adult') return '#e8f5ee';
     if (type === 'senior') return '#fff3e0';
     if (type === 'new_member') return '#e3f2fd';
+    if (type === 'birthday') return '#fce4ec';
     return '#f5f5f5';
   };
 

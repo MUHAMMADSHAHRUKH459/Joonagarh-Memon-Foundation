@@ -22,3 +22,12 @@ export const isVotingEligible = (age: number): boolean => {
 export const formatDate = (date: Date): string => {
   return date.toLocaleDateString('en-GB');
 };
+
+export const isBirthdayToday = (dateOfBirth: string): boolean => {
+  const today = new Date();
+  const dob = new Date(dateOfBirth);
+  return (
+    dob.getDate() === today.getDate() &&
+    dob.getMonth() === today.getMonth()
+  );
+};
