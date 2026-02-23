@@ -40,7 +40,7 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
         <span style={{ fontSize: '1.2rem' }}>🔍</span>
         <input
           type="text"
-          placeholder="Member ID se search karein... (e.g. MEM-123)"
+          placeholder="Search by Name or Member ID... (e.g. Ahmed / MEM-001)"
           value={query}
           onChange={handleChange}
           style={{

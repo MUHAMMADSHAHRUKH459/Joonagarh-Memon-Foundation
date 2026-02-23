@@ -38,7 +38,7 @@ export default function FuneralPage() {
     const msg =
 `🕊️ *Inna Lillahi Wa Inna Ilayhi Raji'un* 🕊️
 
-*Memon Welfare - Karachi Chapter*
+*Naliya Mandwi Junagadh Muslim Welfare Jamat - Karachi Chapter*
 ━━━━━━━━━━━━━━━━━━━━
 
 It is with deep sorrow that we announce the passing of:
@@ -57,7 +57,7 @@ ${funeralDetails.extraNote ? `📝 *Note:* ${funeralDetails.extraNote}\n` : ''}
 ━━━━━━━━━━━━━━━━━━━━
 🤲 May Allah grant them Jannatul Firdaus. Ameen.
 
-_Memon Welfare - Karachi Chapter_`;
+_Naliya Mandwi Junagadh Muslim Welfare Jamat - Karachi Chapter_`;
     return msg;
   };
 

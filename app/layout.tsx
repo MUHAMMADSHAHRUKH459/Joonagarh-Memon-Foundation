@@ -3,7 +3,7 @@ import "./globals.css";
 import SessionWrapper from "@/components/SessionWrapper";
 
 export const metadata: Metadata = {
-  title: "Memon Welfare - Karachi Chapter",
+  title: "Naliya Mandwi Junagadh Muslim Welfare Jamat - Karachi Chapter",
   description: "Community Database Management System",
 };
 

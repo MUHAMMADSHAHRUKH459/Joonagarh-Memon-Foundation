@@ -61,7 +61,7 @@ export default function LoginPage() {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '2rem', margin: '0 auto 1rem',
           }}>🕌</div>
-          <h1 style={{ color: 'white', fontSize: '1.4rem' }}>Memon Welfare</h1>
+          <h1 style={{ color: 'white', fontSize: '1.4rem' }}>Naliya Mandwi Junagadh Muslim Welfare Jamat</h1>
           <p style={{ color: 'var(--green-border)', fontSize: '0.85rem', marginTop: '4px' }}>
             Admin Login - Karachi Chapter
           </p>

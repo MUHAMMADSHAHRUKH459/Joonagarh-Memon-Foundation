@@ -84,7 +84,7 @@ export default function FeesPage({ params }: { params: Promise<{ id: string }> }
   };
 
   const shareWhatsApp = (fee: any) => {
-    const msg = `🧾 *Fee Invoice*\n\n👤 Name: ${member?.name}\n🪪 Member ID: ${member?.id}\n📅 Month: ${fee.month} ${fee.year}\n💰 Amount: Rs. 1000\n✅ Status: Paid\n📆 Paid Date: ${fee.paid_date}\n\n_Memon Welfare - Karachi Chapter_`;
+    const msg = `🧾 *Fee Invoice*\n\n👤 Name: ${member?.name}\n🪪 Member ID: ${member?.id}\n📅 Month: ${fee.month} ${fee.year}\n💰 Amount: Rs. 1000\n✅ Status: Paid\n📆 Paid Date: ${fee.paid_date}\n\n_Naliya Mandwi Junagadh Muslim Welfare Jamat - Karachi Chapter_`;
     const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
     window.open(url, '_blank');
   };
@@ -212,7 +212,7 @@ export default function FeesPage({ params }: { params: Promise<{ id: string }> }
 
               {/* Invoice Header */}
               <div style={{ textAlign: 'center', borderBottom: '2px solid var(--green-main)', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
-                <h2 style={{ color: 'var(--green-dark)', fontSize: '1.4rem' }}>🕌 Memon Welfare</h2>
+                <h2 style={{ color: 'var(--green-dark)', fontSize: '1.4rem' }}>🕌 Naliya Mandwi Junagadh Muslim Welfare Jamat</h2>
                 <p style={{ color: 'var(--gray-text)', fontSize: '0.85rem' }}>Karachi Chapter</p>
                 <p style={{ color: 'var(--gray-text)', fontSize: '0.85rem', marginTop: '4px' }}>Fee Receipt</p>
               </div>

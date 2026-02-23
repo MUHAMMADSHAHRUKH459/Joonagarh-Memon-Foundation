@@ -29,6 +29,7 @@ const Navbar = () => {
     { label: '🗳️ Voters', path: '/voters' },
     { label: '📋 History', path: '/history' },
     { label: '📊 Reports', path: '/reports' },
+    { label: '📢 Broadcast', path: '/broadcast' },
     { label: '🕊️ Funeral', path: '/funeral' },
     { label: '🔔 Alerts', path: '/notifications' },
   ];
@@ -65,7 +66,7 @@ const Navbar = () => {
             fontSize: '18px', flexShrink: 0,
           }}>🕌</div>
           <div>
-            <h1 style={{ color: 'var(--white)', fontSize: '1rem', lineHeight: 1 }}>Memon Welfare</h1>
+            <h1 style={{ color: 'var(--white)', fontSize: '1rem', lineHeight: 1 }}>Naliya Mandwi Junagadh Muslim Welfare Jamat</h1>
             <p style={{ color: 'var(--green-border)', fontSize: '0.68rem' }}>Karachi Chapter</p>
           </div>
         </div>

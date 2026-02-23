@@ -11,6 +11,7 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
   const [member, setMember] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -57,10 +58,42 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
       .getPublicUrl(fileName);
 
     const publicUrl = urlData.publicUrl;
-
     await supabase.from('members').update({ photo_url: publicUrl }).eq('id', decodeURIComponent(id));
     setPhotoUrl(publicUrl);
     setUploading(false);
+  };
+
+  const handleDelete = async () => {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${member?.name}? This action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setDeleting(true);
+
+    // Delete fees
+    await supabase.from('fees').delete().eq('member_id', decodeURIComponent(id));
+
+    // Delete photo from storage
+    if (member?.photo_url) {
+      const fileName = member.photo_url.split('/').pop();
+      await supabase.storage.from('member-photos').remove([fileName]);
+    }
+
+    // Delete member
+    const { error } = await supabase.from('members').delete().eq('id', decodeURIComponent(id));
+
+    if (error) {
+      alert('Error deleting member. Please try again.');
+      setDeleting(false);
+    } else {
+      // Add notification
+      await supabase.from('notifications').insert([{
+        message: `🗑️ Member deleted: ${member?.name} (${member?.id})`,
+        type: 'deleted',
+      }]);
+      router.push('/');
+    }
   };
 
   const infoRow = (label: string, value: any) => (
@@ -92,16 +125,30 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
             padding: '10px 20px', borderRadius: 'var(--radius)', cursor: 'pointer',
             fontSize: '0.95rem', fontWeight: '600',
           }}>← Back</button>
+
           <button onClick={() => router.push(`/fees/${encodeURIComponent(id)}`)} style={{
             backgroundColor: '#1565c0', color: 'white', border: 'none',
             padding: '10px 20px', borderRadius: 'var(--radius)', cursor: 'pointer',
             fontSize: '0.95rem', fontWeight: '600',
           }}>💰 Manage Fees</button>
+
           <button onClick={() => router.push(`/edit/${encodeURIComponent(id)}`)} style={{
             backgroundColor: '#e65100', color: 'white', border: 'none',
             padding: '10px 20px', borderRadius: 'var(--radius)', cursor: 'pointer',
             fontSize: '0.95rem', fontWeight: '600',
           }}>✏️ Edit Member</button>
+
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            style={{
+              backgroundColor: '#c62828', color: 'white', border: 'none',
+              padding: '10px 20px', borderRadius: 'var(--radius)', cursor: 'pointer',
+              fontSize: '0.95rem', fontWeight: '600',
+              marginLeft: 'auto',
+            }}>
+            {deleting ? '⏳ Deleting...' : '🗑️ Delete Member'}
+          </button>
         </div>
 
         {loading && (
@@ -131,7 +178,6 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
               backgroundColor: 'var(--green-dark)', padding: '2rem',
               display: 'flex', alignItems: 'center', gap: '1.5rem',
             }}>
-              {/* Photo */}
               <div style={{ position: 'relative' }}>
                 <div style={{
                   width: '90px', height: '90px', borderRadius: '50%',
