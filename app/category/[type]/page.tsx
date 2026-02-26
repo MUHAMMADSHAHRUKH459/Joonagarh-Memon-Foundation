@@ -15,17 +15,18 @@ export default function CategoryPage({ params }: { params: Promise<{ type: strin
     under18: { title: 'Under 18 Members', emoji: '👦', color: '#1565c0', bg: '#e3f2fd' },
     adult: { title: 'Adult Members (18+)', emoji: '🧑', color: 'var(--green-dark)', bg: 'var(--green-pale)' },
     senior: { title: 'Senior Citizens (60+)', emoji: '👴', color: '#e65100', bg: '#fff3e0' },
+    jamat: { title: 'Jamat Members', emoji: '👨‍👩‍👧‍👦', color: '#6a1b9a', bg: '#f3e5f5' },
   };
 
   const info = categoryInfo[type as keyof typeof categoryInfo];
 
   useEffect(() => {
     const fetchMembers = async () => {
-      const { data, error } = await supabase
-        .from('members')
-        .select('*')
-        .eq('category', type)
-        .order('created_at', { ascending: false });
+      const query = type === 'jamat'
+        ? supabase.from('members').select('*').eq('marital_status', 'Married').order('created_at', { ascending: false })
+        : supabase.from('members').select('*').eq('category', type).order('created_at', { ascending: false });
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('Error fetching members:', error);

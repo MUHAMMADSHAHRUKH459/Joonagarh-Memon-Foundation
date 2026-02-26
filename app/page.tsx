@@ -32,27 +32,6 @@ export default function Home() {
         const isBirthdayToday =
           dob.getDate() === today.getDate() && dob.getMonth() === today.getMonth();
 
-        // Birthday notification (any age)
-        if (isBirthdayToday) {
-          // Check if birthday notification already sent today
-          const todayStr = today.toISOString().split('T')[0];
-          const { data: existingNotif } = await supabase
-            .from('notifications')
-            .select('id')
-            .eq('type', 'birthday')
-            .like('message', `%${member.id}%`)
-            .gte('created_at', todayStr)
-            .single();
-
-          if (!existingNotif) {
-            await supabase.from('notifications').insert([{
-              message: `🎂 Happy Birthday! ${member.name} (${member.id}) is turning ${age} today!`,
-              type: 'birthday',
-            }]);
-            newNotifications.push(`🎂 ${member.name} is turning ${age} today!`);
-          }
-        }
-
         if (newCategory !== member.category) {
           await supabase.from('members').update({
             category: newCategory,
@@ -76,6 +55,26 @@ export default function Home() {
           }
         }
 
+        // Birthday notification
+        if (isBirthdayToday) {
+          const todayStr = today.toISOString().split('T')[0];
+          const { data: existingNotif } = await supabase
+            .from('notifications')
+            .select('id')
+            .eq('type', 'birthday')
+            .like('message', `%${member.id}%`)
+            .gte('created_at', todayStr)
+            .single();
+
+          if (!existingNotif) {
+            await supabase.from('notifications').insert([{
+              message: `🎂 Happy Birthday! ${member.name} (${member.id}) is turning ${age} today!`,
+              type: 'birthday',
+            }]);
+            newNotifications.push(`🎂 ${member.name} is turning ${age} today!`);
+          }
+        }
+
         return { ...member, age, category: newCategory, votingEligible: isVotingEligible(age) };
       }));
       setMembers(updated);
@@ -91,7 +90,17 @@ export default function Home() {
   const handleAddMember = async (member: any) => {
     const age = calculateAge(member.dateOfBirth);
     const category = getCategory(age);
-    const newId = `MEM-${String(members.length + 1).padStart(3, '0')}`;
+
+    // Get last member ID from database
+    const { data: allMembers } = await supabase
+      .from('members')
+      .select('id');
+
+    const lastNum = allMembers && allMembers.length > 0
+      ? Math.max(...allMembers.map((m: any) => parseInt(m.id.replace('MEM-', '')) || 0))
+      : 0;
+
+    const newId = `MEM-${String(lastNum + 1).padStart(3, '0')}`;
 
     const newMember = {
       id: newId,
@@ -121,20 +130,75 @@ export default function Home() {
     if (error) {
       console.error('Error adding member:', error);
       alert('Error adding member. Please try again.');
-    } else {
-      await supabase.from('notifications').insert([{
-        message: `👤 New member added: ${newMember.name} (${newMember.id}) - Category: ${category}`,
-        type: 'new_member',
-      }]);
-      await fetchMembers();
-      setShowForm(false);
+      return;
     }
+
+    await supabase.from('notifications').insert([{
+      message: `👤 New member added: ${newMember.name} (${newMember.id}) - Category: ${category}`,
+      type: 'new_member',
+    }]);
+
+    // Auto add children as Under 18 members
+    if (member.maritalStatus === 'Married' && member.children && member.children.length > 0) {
+      const childrenUnder18 = member.children.filter((c: any) => {
+  const childAge = parseInt(c.age);
+  return !isNaN(childAge) && childAge < 18;
+});
+
+// console.log('Children under 18:', childrenUnder18);
+      for (let i = 0; i < childrenUnder18.length; i++) {
+        const child = childrenUnder18[i];
+        const childNum = lastNum + 2 + i;
+        const childId = `MEM-${String(childNum).padStart(3, '0')}`;
+
+        const dobYear = new Date().getFullYear() - parseInt(child.age);
+        const childDob = `${dobYear}-06-15`;
+
+        const childMember = {
+          id: childId,
+          name: child.name,
+          father_name: member.name,
+          member_cast: member.cast,
+          date_of_birth: childDob,
+          age: parseInt(child.age),
+          gender: child.gender,
+          cnic: null,
+          b_form: child.bForm || null,
+          phone: null,
+          email: null,
+          address: member.address || null,
+          occupation: null,
+          marital_status: 'Unmarried',
+          wife_name: null,
+          wife_cnic: null,
+          children: [],
+          category: 'under18',
+          voting_eligible: false,
+          entry_date: formatDate(new Date()),
+          fees_paid: {},
+        };
+
+        const { error: childError } = await supabase.from('members').insert([childMember]);
+        if (!childError) {
+          await supabase.from('notifications').insert([{
+            message: `👦 Child auto-added: ${child.name} (${childId}) - Father: ${member.name}`,
+            type: 'new_member',
+          }]);
+        } else {
+          console.error('Child insert error:', childError);
+        }
+      }
+    }
+
+    await fetchMembers();
+    setShowForm(false);
   };
 
   const under18 = members.filter((m) => m.category === 'under18');
   const adults = members.filter((m) => m.category === 'adult');
   const seniors = members.filter((m) => m.category === 'senior');
   const voters = members.filter((m) => m.voting_eligible);
+  const jamatMembers = members.filter((m) => m.marital_status === 'Married');
 
   return (
     <main>
@@ -162,7 +226,7 @@ export default function Home() {
           .add-btn {
             width: 100%;
           }
-          .voter-box {
+          .voter-box, .jamat-box {
             flex-direction: column !important;
             gap: 0.5rem !important;
           }
@@ -248,6 +312,33 @@ export default function Home() {
               <p style={{ fontSize: '0.78rem', color: cat.textColor, marginTop: '0.5rem' }}>Click to view →</p>
             </div>
           ))}
+        </div>
+
+        {/* Jamat Members Box */}
+        <div
+          className="jamat-box"
+          onClick={() => router.push('/category/jamat')}
+          onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-2px)')}
+          onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}
+          style={{
+            backgroundColor: 'var(--white)',
+            borderRadius: 'var(--radius)',
+            boxShadow: 'var(--shadow)',
+            padding: '1rem 1.5rem',
+            marginBottom: '1.5rem',
+            borderLeft: '4px solid #6a1b9a',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            cursor: 'pointer',
+            transition: 'transform 0.2s',
+          }}
+        >
+          <div>
+            <h3 style={{ fontSize: '1rem', color: '#6a1b9a' }}>👨‍👩‍👧‍👦 Jamat Members</h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--gray-text)' }}>Married members — Click to view all</p>
+          </div>
+          <p style={{ fontSize: '2rem', fontWeight: '700', color: '#6a1b9a' }}>{jamatMembers.length}</p>
         </div>
 
         {/* Voter List Box */}
