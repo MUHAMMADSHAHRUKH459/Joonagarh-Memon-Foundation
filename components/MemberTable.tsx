@@ -16,6 +16,7 @@ interface Member {
   occupation: string;
   category: string;
   entry_date: string;
+  is_child: boolean;
 }
 
 interface MemberTableProps {
@@ -25,7 +26,10 @@ interface MemberTableProps {
 const MemberTable = ({ members }: MemberTableProps) => {
   const router = useRouter();
 
-  if (members.length === 0) {
+  // Filter out children from main table
+  const filteredMembers = members.filter(m => !m.is_child);
+
+  if (filteredMembers.length === 0) {
     return (
       <div style={{
         backgroundColor: 'var(--white)',
@@ -58,8 +62,7 @@ const MemberTable = ({ members }: MemberTableProps) => {
         justifyContent: 'space-between',
         alignItems: 'center',
       }}>
-        <h3 style={{ fontSize: '1.1rem' }}>👥 All Members ({members.length})</h3>
-      </div>
+        <h3 style={{ fontSize: '1.1rem' }}>👥 All Members ({filteredMembers.length})</h3>      </div>
 
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -78,7 +81,7 @@ const MemberTable = ({ members }: MemberTableProps) => {
             </tr>
           </thead>
           <tbody>
-            {members.map((member, index) => (
+            {filteredMembers.map((member, index) => (
               <tr key={member.id}
                 style={{
                   borderBottom: '1px solid var(--green-pale)',

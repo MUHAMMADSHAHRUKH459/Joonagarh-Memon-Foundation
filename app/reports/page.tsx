@@ -25,7 +25,8 @@ export default function ReportsPage() {
 
   const fetchData = async () => {
     setLoading(true);
-    const { data: membersData } = await supabase.from('members').select('*');
+    const { data: membersData } = await supabase.from('members').select('*').eq('is_child', false);
+
     const { data: feesData } = await supabase.from('fees').select('*, members(name, father_name)').eq('year', selectedYear).eq('month', selectedMonth);
     setMembers(membersData || []);
     setFees(feesData || []);

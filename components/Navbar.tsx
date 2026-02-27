@@ -29,6 +29,7 @@ const Navbar = () => {
     { label: '🗳️ Voters', path: '/voters' },
     { label: '📋 History', path: '/history' },
     { label: '📊 Reports', path: '/reports' },
+    { label: '📒 Accounts', path: '/accounts' },
     { label: '📢 Broadcast', path: '/broadcast' },
     { label: '🕊️ Funeral', path: '/funeral' },
     { label: '🔔 Alerts', path: '/notifications' },

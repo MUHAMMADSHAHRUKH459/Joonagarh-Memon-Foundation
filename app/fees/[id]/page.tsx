@@ -84,8 +84,9 @@ export default function FeesPage({ params }: { params: Promise<{ id: string }> }
   };
 
   const shareWhatsApp = (fee: any) => {
-    const msg = `🧾 *Fee Invoice*\n\n👤 Name: ${member?.name}\n🪪 Member ID: ${member?.id}\n📅 Month: ${fee.month} ${fee.year}\n💰 Amount: Rs. 1000\n✅ Status: Paid\n📆 Paid Date: ${fee.paid_date}\n\n_Naliya Mandwi Junagadh Muslim Welfare Jamat - Karachi Chapter_`;
-    const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    const phone = member?.phone?.replace(/[^0-9]/g, '');
+    const msg = `🧾 *Fee Invoice*\n\n👤 Name: ${member?.name}\n👨 Father Name: ${member?.father_name}\n🪪 Member ID: ${member?.id}\n� Phone: ${member?.phone}\n�📅 Month: ${fee.month} ${fee.year}\n💰 Amount: Rs. 1,000\n✅ Status: Paid\n📆 Paid Date: ${fee.paid_date}\n\n_Naliya Mandwi Junagadh Muslim Welfare Jamat - Karachi Chapter_`;
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
     window.open(url, '_blank');
   };
 
@@ -142,7 +143,7 @@ export default function FeesPage({ params }: { params: Promise<{ id: string }> }
             onChange={(e) => setSelectedYear(parseInt(e.target.value))}
             style={{ padding: '8px 14px', borderRadius: '8px', border: '1.5px solid var(--green-border)', fontSize: '0.95rem' }}
           >
-            {[currentYear - 1, currentYear, currentYear + 1].map((y) => (
+            {Array.from({ length: 2050 - 2024 + 1 }, (_, i) => 2024 + i).map((y) => (
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
@@ -183,7 +184,7 @@ export default function FeesPage({ params }: { params: Promise<{ id: string }> }
                   </button>
                   {isPaid && (
                     <button
-                      onClick={() => setSelectedInvoice({ ...fee, month, memberName: member?.name, memberId: member?.id, phone: member?.phone })}
+                      onClick={() => setSelectedInvoice({ ...fee, month, memberName: member?.name, fatherName: member?.father_name, memberId: member?.id, phone: member?.phone })}
                       style={{
                         backgroundColor: '#1565c0', color: 'white', border: 'none',
                         padding: '6px 12px', borderRadius: '8px', cursor: 'pointer',
@@ -221,7 +222,9 @@ export default function FeesPage({ params }: { params: Promise<{ id: string }> }
               <div style={{ marginBottom: '1.5rem' }}>
                 {[
                   ['Member Name', selectedInvoice.memberName],
+                  ['Father Name', selectedInvoice.fatherName],
                   ['Member ID', selectedInvoice.memberId],
+                  ['Phone', selectedInvoice.phone],
                   ['Month', `${selectedInvoice.month} ${selectedInvoice.year}`],
                   ['Amount', 'Rs. 1,000'],
                   ['Status', '✅ Paid'],
@@ -234,8 +237,18 @@ export default function FeesPage({ params }: { params: Promise<{ id: string }> }
                 ))}
               </div>
 
+              {/* Green Line + Signature */}
+              <div style={{ borderTop: '2px solid var(--green-main)', marginBottom: '1.5rem', paddingTop: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end', marginTop: '2rem' }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ borderTop: '1.5px solid #333', width: '150px', marginBottom: '6px' }} />
+                    <p style={{ fontSize: '0.78rem', color: 'var(--gray-text)' }}>Authorized Signature</p>
+                  </div>
+                </div>
+              </div>
+
               {/* Buttons */}
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div className="no-print" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <button onClick={printInvoice} style={{
                   flex: 1, backgroundColor: 'var(--green-main)', color: 'white',
                   border: 'none', padding: '10px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600',

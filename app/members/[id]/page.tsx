@@ -126,11 +126,13 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
             fontSize: '0.95rem', fontWeight: '600',
           }}>← Back</button>
 
-          <button onClick={() => router.push(`/fees/${encodeURIComponent(id)}`)} style={{
-            backgroundColor: '#1565c0', color: 'white', border: 'none',
-            padding: '10px 20px', borderRadius: 'var(--radius)', cursor: 'pointer',
-            fontSize: '0.95rem', fontWeight: '600',
-          }}>💰 Manage Fees</button>
+         {!member?.is_child && (
+            <button onClick={() => router.push(`/fees/${encodeURIComponent(id)}`)} style={{
+              backgroundColor: '#1565c0', color: 'white', border: 'none',
+              padding: '10px 20px', borderRadius: 'var(--radius)', cursor: 'pointer',
+              fontSize: '0.95rem', fontWeight: '600',
+            }}>💰 Manage Fees</button>
+          )}
 
           <button onClick={() => router.push(`/edit/${encodeURIComponent(id)}`)} style={{
             backgroundColor: '#e65100', color: 'white', border: 'none',

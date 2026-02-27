@@ -48,3 +48,9 @@ input, select, button {
   background: var(--green-light);
   border-radius: 10px;
 }
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
