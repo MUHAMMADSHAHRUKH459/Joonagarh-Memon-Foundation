@@ -3,7 +3,7 @@ import "./globals.css";
 import SessionWrapper from "@/components/SessionWrapper";
 
 export const metadata: Metadata = {
-  title: "Naliya Mandwi Junagadh Muslim Welfare Jamat - Karachi Chapter",
+  title: "Naliya Mandwi Junagadh Muslim Welfare Jamat",
   description: "Community Database Management System",
 };
 

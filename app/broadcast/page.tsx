@@ -49,7 +49,7 @@ export default function BroadcastPage() {
     for (let i = 0; i < filteredMembers.length; i++) {
       const member = filteredMembers[i];
       const phone = member.phone?.replace(/[^0-9]/g, '');
-      const personalMsg = `Assalam o Alaikum ${member.name}!\n\n${message}\n\n_Naliya Mandwi Junagadh Muslim Welfare Jamat - Karachi Chapter_`;
+      const personalMsg = `Assalam o Alaikum ${member.name}!\n\n${message}\n\n_Naliya Mandwi Junagadh Muslim Welfare Jamat  _`;
       const url = `https://wa.me/${phone}?text=${encodeURIComponent(personalMsg)}`;
       window.open(url, '_blank');
       setSentCount(i + 1);
@@ -61,7 +61,7 @@ export default function BroadcastPage() {
   };
 
   const previewMessage = (member: any) => {
-    return `Assalam o Alaikum ${member.name}!\n\n${message}\n\n_Naliya Mandwi Junagadh Muslim Welfare Jamat - Karachi Chapter_`;
+    return `Assalam o Alaikum ${member.name}!\n\n${message}\n\n_Naliya Mandwi Junagadh Muslim Welfare Jamat`;
   };
 
   return (
@@ -159,7 +159,7 @@ export default function BroadcastPage() {
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               {[
                 { label: '📅 Meeting', text: 'Naliya Mandwi Junagadh Muslim Welfare Jamat ki ek ahem meeting aaj shaam 6 baje hogi. Meherbani farma kar zaroor tashreef layein.' },
-                { label: '🎉 Event', text: 'Naliya Mandwi Junagadh Muslim Welfare Jamat Karachi Chapter ki taraf se aap sab ko khushabdee di jaati hai. Hamare aaane wale event mein zaroor shamil hon.' },
+                { label: '🎉 Event', text: 'Naliya Mandwi Junagadh Muslim Welfare Jamat ki taraf se aap sab ko khushabdee di jaati hai. Hamare aaane wale event mein zaroor shamil hon.' },
                 { label: '💰 Fees Reminder', text: 'Guzarish hai ke apni maahana fees ada farmayein. Aapka taawun hamare liye qeemti hai.' },
               ].map((t) => (
                 <button

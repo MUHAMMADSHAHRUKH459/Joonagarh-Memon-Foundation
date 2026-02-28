@@ -63,7 +63,7 @@ export default function LoginPage() {
           }}>🕌</div>
           <h1 style={{ color: 'white', fontSize: '1.4rem' }}>Naliya Mandwi Junagadh Muslim Welfare Jamat</h1>
           <p style={{ color: 'var(--green-border)', fontSize: '0.85rem', marginTop: '4px' }}>
-            Admin Login - Karachi Chapter
+            Admin Login
           </p>
         </div>
 

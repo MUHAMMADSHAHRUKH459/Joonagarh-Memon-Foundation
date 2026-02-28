@@ -7,29 +7,37 @@ import { supabase } from '@/lib/supabaseClient';
 
 export default function FuneralPage() {
   const router = useRouter();
-  const [searchId, setSearchId] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
   const [member, setMember] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [funeralDetails, setFuneralDetails] = useState({
     janazaTime: '',
     janazaPlace: '',
     burialPlace: '',
+    somDate: '',
+    somPlace: '',
     extraNote: '',
+    includeSom: false,
   });
 
   const searchMember = async () => {
-    if (!searchId) return;
+    if (!searchQuery) return;
     setLoading(true);
+    setSearchResults([]);
+    setMember(null);
+
     const { data, error } = await supabase
       .from('members')
       .select('*')
-      .eq('id', searchId.toUpperCase())
-      .single();
+      .or(`id.eq.${searchQuery.toUpperCase()},name.ilike.%${searchQuery}%`);
 
-    if (error || !data) {
-      alert('Member not found. Please check the Member ID.');
+    if (error || !data || data.length === 0) {
+      alert('Koi member nahi mila. Dobara check karein.');
+    } else if (data.length === 1) {
+      setMember(data[0]);
     } else {
-      setMember(data);
+      setSearchResults(data);
     }
     setLoading(false);
   };
@@ -38,26 +46,33 @@ export default function FuneralPage() {
     const msg =
 `🕊️ *Inna Lillahi Wa Inna Ilayhi Raji'un* 🕊️
 
-*Naliya Mandwi Junagadh Muslim Welfare Jamat - Karachi Chapter*
+*Naliya Mandwi Junagadh Muslim Welfare Jamat*
+*Karachi Chapter*
 ━━━━━━━━━━━━━━━━━━━━
 
-It is with deep sorrow that we announce the passing of:
+Bahut afsos ke saath yeh itlaa di jati hai ke hamare aziz:
 
-👤 *Name:* ${member?.name || '___________'}
-👨 *Father's Name:* ${member?.father_name || '___________'}
+👤 *Naam:* ${member?.name || '___________'}
+👨 *Walid ka Naam:* ${member?.father_name || '___________'}
 🏷️ *Cast:* ${member?.member_cast || '___________'}
 
+ka inteqal ho gaya hai. Inna Lillahi Wa Inna Ilayhi Raji'un.
+
 🕌 *Namaz-e-Janaza:*
-📍 Place: ${funeralDetails.janazaPlace || '___________'}
-⏰ Time: ${funeralDetails.janazaTime || '___________'}
+📍 Jagah: ${funeralDetails.janazaPlace || '___________'}
+⏰ Waqt: ${funeralDetails.janazaTime || '___________'}
 
-⚰️ *Burial:* ${funeralDetails.burialPlace || '___________'}
+⚰️ *Dafan:* ${funeralDetails.burialPlace || '___________'}
 
+${funeralDetails.includeSom ? `\n📿 *Soyem (3rd Day):*\n📍 Jagah: ${funeralDetails.somPlace || '___________'}\n📅 Tarikh: ${funeralDetails.somDate || '___________'}\nTamam ahbaab se guzarish hai ke soyem mein zaroor tashreef layein.\n` : ''}
 ${funeralDetails.extraNote ? `📝 *Note:* ${funeralDetails.extraNote}\n` : ''}
 ━━━━━━━━━━━━━━━━━━━━
-🤲 May Allah grant them Jannatul Firdaus. Ameen.
+🤲 Allah Taala marhoom ko Jannat ul Firdaus mein jagah ata farmaye. Ameen.
 
-_Naliya Mandwi Junagadh Muslim Welfare Jamat - Karachi Chapter_`;
+Tamam ahbaab se guzarish hai ke apni duaon mein yaad rakhein.
+
+_Naliya Mandwi Junagadh Muslim Welfare Jamat_
+_Karachi Chapter_`;
     return msg;
   };
 
@@ -76,6 +91,7 @@ _Naliya Mandwi Junagadh Muslim Welfare Jamat - Karachi Chapter_`;
     outline: 'none',
     backgroundColor: 'var(--white)',
     color: 'var(--text-dark)',
+    boxSizing: 'border-box' as const,
   };
 
   const labelStyle = {
@@ -102,9 +118,9 @@ _Naliya Mandwi Junagadh Muslim Welfare Jamat - Karachi Chapter_`;
           backgroundColor: '#1a1a1a', borderRadius: 'var(--radius)',
           padding: '1.5rem', marginBottom: '1.5rem', textAlign: 'center',
         }}>
-          <h2 style={{ color: 'white', fontSize: '1.4rem' }}>🕊️ Death / Funeral Notification</h2>
+          <h2 style={{ color: 'white', fontSize: '1.4rem' }}>🕊️ Intiqal / Janaza Notification</h2>
           <p style={{ color: '#aaa', fontSize: '0.85rem', marginTop: '4px' }}>
-            Generate and share funeral announcement via WhatsApp
+            Janaza ka ilan WhatsApp ke zariye share karein
           </p>
         </div>
 
@@ -113,22 +129,50 @@ _Naliya Mandwi Junagadh Muslim Welfare Jamat - Karachi Chapter_`;
           backgroundColor: 'var(--white)', borderRadius: 'var(--radius)',
           padding: '1.5rem', marginBottom: '1.5rem', boxShadow: 'var(--shadow)',
         }}>
-          <h3 style={{ marginBottom: '1rem', fontSize: '1rem', color: 'var(--green-dark)' }}>Step 1: Search Member</h3>
+          <h3 style={{ marginBottom: '1rem', fontSize: '1rem', color: 'var(--green-dark)' }}>
+            Step 1: Member Talash Karein
+          </h3>
           <div style={{ display: 'flex', gap: '1rem' }}>
             <input
               style={{ ...inputStyle, flex: 1 }}
-              placeholder="Enter Member ID (e.g. MEM-001)"
-              value={searchId}
-              onChange={(e) => setSearchId(e.target.value)}
+              placeholder="Naam ya Member ID likhein (e.g. Ahmed / MEM-001)"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && searchMember()}
             />
             <button onClick={searchMember} style={{
               backgroundColor: 'var(--green-main)', color: 'white', border: 'none',
-              padding: '10px 20px', borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: '600',
+              padding: '10px 20px', borderRadius: 'var(--radius)', cursor: 'pointer',
+              fontWeight: '600', whiteSpace: 'nowrap',
             }}>
-              {loading ? 'Searching...' : 'Search'}
+              {loading ? 'Talash...' : 'Talash Karein'}
             </button>
           </div>
+
+          {/* Multiple Results */}
+          {searchResults.length > 1 && (
+            <div style={{ marginTop: '1rem' }}>
+              <p style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--green-dark)', marginBottom: '0.5rem' }}>
+                {searchResults.length} member mile - kisi ek ko select karein:
+              </p>
+              {searchResults.map((m) => (
+                <div
+                  key={m.id}
+                  onClick={() => { setMember(m); setSearchResults([]); }}
+                  style={{
+                    padding: '0.75rem 1rem', marginBottom: '0.5rem',
+                    backgroundColor: 'var(--green-pale)', borderRadius: '8px',
+                    border: '1px solid var(--green-border)', cursor: 'pointer',
+                    fontSize: '0.9rem',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#c8e6c9')}
+                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'var(--green-pale)')}
+                >
+                  <strong>{m.name}</strong> | Walid: {m.father_name} | ID: {m.id} | Cast: {m.member_cast}
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Member Found */}
           {member && (
@@ -137,10 +181,20 @@ _Naliya Mandwi Junagadh Muslim Welfare Jamat - Karachi Chapter_`;
               borderRadius: '8px', padding: '1rem',
               border: '1px solid var(--green-border)',
             }}>
-              <p style={{ fontWeight: '600', color: 'var(--green-dark)' }}>✅ Member Found:</p>
+              <p style={{ fontWeight: '600', color: 'var(--green-dark)' }}>✅ Member Mil Gaya:</p>
               <p style={{ fontSize: '0.9rem', marginTop: '4px' }}>
-                <strong>{member.name}</strong> | Father: {member.father_name} | Cast: {member.member_cast} | ID: {member.id}
+                <strong>{member.name}</strong> | Walid: {member.father_name} | Cast: {member.member_cast} | ID: {member.id}
               </p>
+              <button
+                onClick={() => { setMember(null); setSearchQuery(''); }}
+                style={{
+                  marginTop: '0.5rem', backgroundColor: 'transparent',
+                  border: '1px solid #c62828', color: '#c62828',
+                  padding: '4px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem',
+                }}
+              >
+                ✕ Change Member
+              </button>
             </div>
           )}
         </div>
@@ -150,19 +204,21 @@ _Naliya Mandwi Junagadh Muslim Welfare Jamat - Karachi Chapter_`;
           backgroundColor: 'var(--white)', borderRadius: 'var(--radius)',
           padding: '1.5rem', marginBottom: '1.5rem', boxShadow: 'var(--shadow)',
         }}>
-          <h3 style={{ marginBottom: '1rem', fontSize: '1rem', color: 'var(--green-dark)' }}>Step 2: Funeral Details</h3>
+          <h3 style={{ marginBottom: '1rem', fontSize: '1rem', color: 'var(--green-dark)' }}>
+            Step 2: Janaza ki Tafsilat
+          </h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div>
-              <label style={labelStyle}>Namaz-e-Janaza Time</label>
+              <label style={labelStyle}>Namaz-e-Janaza ka Waqt</label>
               <input
                 style={inputStyle}
-                placeholder="e.g. 2:00 PM"
+                placeholder="e.g. Asr ke baad 5:00 PM"
                 value={funeralDetails.janazaTime}
                 onChange={(e) => setFuneralDetails({ ...funeralDetails, janazaTime: e.target.value })}
               />
             </div>
             <div>
-              <label style={labelStyle}>Namaz-e-Janaza Place</label>
+              <label style={labelStyle}>Namaz-e-Janaza ki Jagah</label>
               <input
                 style={inputStyle}
                 placeholder="e.g. Masjid Al-Noor, Kharadar"
@@ -171,7 +227,7 @@ _Naliya Mandwi Junagadh Muslim Welfare Jamat - Karachi Chapter_`;
               />
             </div>
             <div>
-              <label style={labelStyle}>Burial Place</label>
+              <label style={labelStyle}>Dafan ki Jagah</label>
               <input
                 style={inputStyle}
                 placeholder="e.g. Mewa Shah Qabrastan"
@@ -180,14 +236,56 @@ _Naliya Mandwi Junagadh Muslim Welfare Jamat - Karachi Chapter_`;
               />
             </div>
             <div>
-              <label style={labelStyle}>Additional Note (Optional)</label>
+              <label style={labelStyle}>Koi Aur Baat (Optional)</label>
               <input
                 style={inputStyle}
-                placeholder="Any additional info"
+                placeholder="Koi zaruri maloomat"
                 value={funeralDetails.extraNote}
                 onChange={(e) => setFuneralDetails({ ...funeralDetails, extraNote: e.target.value })}
               />
             </div>
+          </div>
+
+          {/* Som Option */}
+          <div style={{
+            marginTop: '1.5rem', padding: '1rem',
+            backgroundColor: '#f3e5f5', borderRadius: '8px',
+            border: '1px solid #ce93d8',
+          }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={funeralDetails.includeSom}
+                onChange={(e) => setFuneralDetails({ ...funeralDetails, includeSom: e.target.checked })}
+                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+              />
+              <span style={{ fontWeight: '600', color: '#6a1b9a', fontSize: '0.95rem' }}>
+                Add Soyem Details
+              </span>
+            </label>
+
+            {funeralDetails.includeSom && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                <div>
+                  <label style={{ ...labelStyle, color: '#6a1b9a' }}>Soyem ki Tarikh</label>
+                  <input
+                    style={inputStyle}
+                    type="date"
+                    value={funeralDetails.somDate}
+                    onChange={(e) => setFuneralDetails({ ...funeralDetails, somDate: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label style={{ ...labelStyle, color: '#6a1b9a' }}>Soyem ki Jagah</label>
+                  <input
+                    style={inputStyle}
+                    placeholder="e.g. Marhoom ka ghar"
+                    value={funeralDetails.somPlace}
+                    onChange={(e) => setFuneralDetails({ ...funeralDetails, somPlace: e.target.value })}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -196,17 +294,14 @@ _Naliya Mandwi Junagadh Muslim Welfare Jamat - Karachi Chapter_`;
           backgroundColor: 'var(--white)', borderRadius: 'var(--radius)',
           padding: '1.5rem', marginBottom: '1.5rem', boxShadow: 'var(--shadow)',
         }}>
-          <h3 style={{ marginBottom: '1rem', fontSize: '1rem', color: 'var(--green-dark)' }}>Step 3: Message Preview</h3>
+          <h3 style={{ marginBottom: '1rem', fontSize: '1rem', color: 'var(--green-dark)' }}>
+            Step 3: Message Preview
+          </h3>
           <div style={{
-            backgroundColor: '#e8f5e9',
-            borderRadius: '12px',
-            padding: '1.5rem',
-            fontFamily: 'monospace',
-            fontSize: '0.85rem',
-            whiteSpace: 'pre-wrap',
-            color: '#1a1a1a',
-            border: '1px solid #c8e6c9',
-            lineHeight: 1.8,
+            backgroundColor: '#e8f5e9', borderRadius: '12px',
+            padding: '1.5rem', fontFamily: 'monospace',
+            fontSize: '0.85rem', whiteSpace: 'pre-wrap',
+            color: '#1a1a1a', border: '1px solid #c8e6c9', lineHeight: 1.8,
           }}>
             {generateMessage()}
           </div>
@@ -216,18 +311,13 @@ _Naliya Mandwi Junagadh Muslim Welfare Jamat - Karachi Chapter_`;
         <button
           onClick={shareWhatsApp}
           style={{
-            width: '100%',
-            backgroundColor: '#25d366',
-            color: 'white',
-            border: 'none',
-            padding: '14px',
-            borderRadius: 'var(--radius)',
-            cursor: 'pointer',
-            fontSize: '1.1rem',
-            fontWeight: '700',
+            width: '100%', backgroundColor: '#25d366',
+            color: 'white', border: 'none', padding: '14px',
+            borderRadius: 'var(--radius)', cursor: 'pointer',
+            fontSize: '1.1rem', fontWeight: '700',
           }}
         >
-          📱 Share on WhatsApp
+          📱 WhatsApp Par Share Karein
         </button>
 
       </div>

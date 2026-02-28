@@ -68,7 +68,7 @@ const Navbar = () => {
           }}>🕌</div>
           <div>
             <h1 style={{ color: 'var(--white)', fontSize: '1rem', lineHeight: 1 }}>Naliya Mandwi Junagadh Muslim Welfare Jamat</h1>
-            <p style={{ color: 'var(--green-border)', fontSize: '0.68rem' }}>Karachi Chapter</p>
+            <p style={{ color: 'var(--green-border)', fontSize: '0.68rem' }}></p>
           </div>
         </div>
 

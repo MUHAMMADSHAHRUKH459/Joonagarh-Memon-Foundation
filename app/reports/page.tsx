@@ -50,7 +50,7 @@ export default function ReportsPage() {
 
   const sendWhatsAppReminder = (member: any) => {
     const phone = member.phone?.replace(/[^0-9]/g, '');
-    const msg = `Assalam o Alaikum! ${member.name} bhai,\n\nNaliya Mandwi Junagadh Muslim Welfare Jamat Karachi Chapter ki *${selectedMonth} ${selectedYear}* ki monthly fee *Rs. 1,000* abhi tak pending hai.\n\nMeherbani farma kar jald ada karein.\n\nShukriya! 🕌\n_Naliya Mandwi Junagadh Muslim Welfare Jamat - Karachi Chapter_`;
+    const msg = `Assalam o Alaikum! ${member.name} bhai,\n\nNaliya Mandwi Junagadh Muslim Welfare Jamat ki *${selectedMonth} ${selectedYear}* ki monthly fee *Rs. 1,000* abhi tak pending hai.\n\nMeherbani farma kar jald ada karein.\n\nShukriya! 🕌\n_Naliya Mandwi Junagadh Muslim Welfare Jamat`;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
@@ -68,7 +68,7 @@ export default function ReportsPage() {
 
     doc.setFontSize(18);
     doc.setTextColor(26, 92, 56);
-    doc.text('Naliya Mandwi Junagadh Muslim Welfare Jamat - Karachi Chapter', 105, 15, { align: 'center' });
+    doc.text('Naliya Mandwi Junagadh Muslim Welfare Jamat ', 105, 15, { align: 'center' });
 
     doc.setFontSize(12);
     doc.setTextColor(100);
@@ -186,7 +186,7 @@ export default function ReportsPage() {
         }}>
           <div>
             <h2 style={{ fontSize: '1.5rem' }}>📊 Reports & Analytics</h2>
-            <p style={{ fontSize: '0.85rem', color: 'var(--gray-text)' }}>Naliya Mandwi Junagadh Muslim Welfare Jamat - Karachi Chapter</p>
+            <p style={{ fontSize: '0.85rem', color: 'var(--gray-text)' }}>Naliya Mandwi Junagadh Muslim Welfare Jamat </p>
           </div>
           <button onClick={exportPDF} style={{
             backgroundColor: '#c62828', color: 'white', border: 'none',
