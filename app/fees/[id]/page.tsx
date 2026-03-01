@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import { supabase } from '@/lib/supabaseClient';
 
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const YEARS = Array.from({ length: 2050 - 2024 + 1 }, (_, i) => 2024 + i);
 
 export default function FeesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -14,12 +14,10 @@ export default function FeesPage({ params }: { params: Promise<{ id: string }> }
   const [fees, setFees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
-  const currentYear = new Date().getFullYear();
-  const [selectedYear, setSelectedYear] = useState(currentYear);
 
   useEffect(() => {
     fetchData();
-  }, [id, selectedYear]);
+  }, [id]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -35,33 +33,29 @@ export default function FeesPage({ params }: { params: Promise<{ id: string }> }
     const { data: feesData } = await supabase
       .from('fees')
       .select('*')
-      .eq('member_id', decodeURIComponent(id))
-      .eq('year', selectedYear);
+      .eq('member_id', decodeURIComponent(id));
 
     setFees(feesData || []);
     setLoading(false);
   };
 
-  const toggleFee = async (month: string) => {
-    const existing = fees.find((f) => f.month === month && f.year === selectedYear);
+  const toggleFee = async (year: number) => {
+    const existing = fees.find((f) => f.year === year && f.month === 'Yearly');
 
     if (existing) {
       if (existing.paid) {
-        // Unpay
         await supabase.from('fees').update({ paid: false, paid_date: null }).eq('id', existing.id);
       } else {
-        // Pay
         await supabase.from('fees').update({
           paid: true,
           paid_date: new Date().toLocaleDateString('en-GB'),
         }).eq('id', existing.id);
       }
     } else {
-      // Create new
       await supabase.from('fees').insert([{
         member_id: decodeURIComponent(id),
-        month,
-        year: selectedYear,
+        month: 'Yearly',
+        year,
         amount: 1000,
         paid: true,
         paid_date: new Date().toLocaleDateString('en-GB'),
@@ -71,12 +65,12 @@ export default function FeesPage({ params }: { params: Promise<{ id: string }> }
     await fetchData();
   };
 
-  const getFeeForMonth = (month: string) => {
-    return fees.find((f) => f.month === month && f.year === selectedYear);
+  const getFeeForYear = (year: number) => {
+    return fees.find((f) => f.year === year && f.month === 'Yearly');
   };
 
-  const paidCount = fees.filter((f) => f.paid).length;
-  const unpaidCount = MONTHS.length - paidCount;
+  const paidCount = fees.filter((f) => f.paid && f.month === 'Yearly').length;
+  const unpaidCount = YEARS.length - paidCount;
   const totalPaid = paidCount * 1000;
 
   const printInvoice = () => {
@@ -85,7 +79,7 @@ export default function FeesPage({ params }: { params: Promise<{ id: string }> }
 
   const shareWhatsApp = (fee: any) => {
     const phone = member?.phone?.replace(/[^0-9]/g, '');
-    const msg = `🧾 *Fee Invoice*\n\n👤 Name: ${member?.name}\n👨 Father Name: ${member?.father_name}\n🪪 Member ID: ${member?.id}\n� Phone: ${member?.phone}\n�📅 Month: ${fee.month} ${fee.year}\n💰 Amount: Rs. 1,000\n✅ Status: Paid\n📆 Paid Date: ${fee.paid_date}\n\n_Naliya Mandwi Junagadh Muslim Welfare Jamat _`;
+    const msg = `🧾 *Fee Invoice*\n\n👤 Name: ${member?.name}\n👨 Father Name: ${member?.father_name}\n🪪 Member ID: ${member?.id}\n📱 Phone: ${member?.phone}\n📅 Year: ${fee.year}\n💰 Amount: Rs. 1,000\n✅ Status: Paid\n📆 Paid Date: ${fee.paid_date}\n\n_Naliya Mandwi Junagadh Muslim Welfare Jamat - Karachi Chapter_`;
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
     window.open(url, '_blank');
   };
@@ -93,7 +87,74 @@ export default function FeesPage({ params }: { params: Promise<{ id: string }> }
   return (
     <main>
       <Navbar />
-      <div style={{ padding: '2rem', maxWidth: '900px', margin: '0 auto' }}>
+
+      <style>{`
+        .fees-stats-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 1rem;
+          margin-bottom: 1.5rem;
+        }
+        .years-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 1rem;
+          margin-bottom: 2rem;
+        }
+        .year-card {
+          background-color: var(--white);
+          border-radius: var(--radius);
+          padding: 1rem;
+          box-shadow: var(--shadow);
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .member-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+        }
+        @media (max-width: 600px) {
+          .fees-stats-grid {
+            grid-template-columns: 1fr !important;
+            gap: 0.75rem;
+          }
+          .years-grid {
+            grid-template-columns: 1fr 1fr !important;
+            gap: 0.75rem;
+          }
+          .year-card {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+          }
+          .year-btns {
+            display: flex !important;
+            flex-direction: row !important;
+            width: 100%;
+          }
+          .year-btns button {
+            flex: 1;
+          }
+          .member-header {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+          .page-pad {
+            padding: 1rem !important;
+          }
+        }
+        @media print {
+          .no-print {
+            display: none !important;
+          }
+        }
+      `}</style>
+
+      <div className="page-pad" style={{ padding: '2rem', maxWidth: '900px', margin: '0 auto' }}>
 
         <button onClick={() => router.back()} style={{
           backgroundColor: 'var(--green-main)', color: 'white', border: 'none',
@@ -105,100 +166,94 @@ export default function FeesPage({ params }: { params: Promise<{ id: string }> }
         {member && (
           <div style={{
             backgroundColor: 'var(--green-dark)', borderRadius: 'var(--radius)',
-            padding: '1.5rem', marginBottom: '1.5rem', color: 'white',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '1.2rem 1.5rem', marginBottom: '1.5rem', color: 'white',
           }}>
-            <div>
-              <h2 style={{ color: 'white', fontSize: '1.3rem' }}>{member.name}</h2>
-              <p style={{ color: 'var(--green-border)', fontSize: '0.85rem' }}>ID: {member.id} | {member.phone}</p>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <p style={{ color: 'var(--green-border)', fontSize: '0.85rem' }}>Monthly Fee</p>
-              <p style={{ color: 'white', fontWeight: '700', fontSize: '1.2rem' }}>Rs. 1,000</p>
+            <div className="member-header">
+              <div>
+                <h2 style={{ color: 'white', fontSize: '1.2rem' }}>{member.name}</h2>
+                <p style={{ color: 'var(--green-border)', fontSize: '0.82rem', marginTop: '2px' }}>
+                  ID: {member.id} | {member.phone}
+                </p>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <p style={{ color: 'var(--green-border)', fontSize: '0.82rem' }}>Yearly Fee</p>
+                <p style={{ color: 'white', fontWeight: '700', fontSize: '1.1rem' }}>Rs. 1,000</p>
+              </div>
             </div>
           </div>
         )}
 
         {/* Stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div className="fees-stats-grid">
           <div style={{ backgroundColor: 'var(--white)', borderRadius: 'var(--radius)', padding: '1rem', textAlign: 'center', boxShadow: 'var(--shadow)', borderTop: '3px solid var(--green-main)' }}>
             <p style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--green-main)' }}>{paidCount}</p>
-            <p style={{ fontSize: '0.85rem', color: 'var(--gray-text)' }}>Months Paid</p>
+            <p style={{ fontSize: '0.82rem', color: 'var(--gray-text)' }}>Years Paid</p>
           </div>
           <div style={{ backgroundColor: 'var(--white)', borderRadius: 'var(--radius)', padding: '1rem', textAlign: 'center', boxShadow: 'var(--shadow)', borderTop: '3px solid #ef5350' }}>
             <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ef5350' }}>{unpaidCount}</p>
-            <p style={{ fontSize: '0.85rem', color: 'var(--gray-text)' }}>Months Unpaid</p>
+            <p style={{ fontSize: '0.82rem', color: 'var(--gray-text)' }}>Years Unpaid</p>
           </div>
           <div style={{ backgroundColor: 'var(--white)', borderRadius: 'var(--radius)', padding: '1rem', textAlign: 'center', boxShadow: 'var(--shadow)', borderTop: '3px solid #1565c0' }}>
-            <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1565c0' }}>Rs. {totalPaid.toLocaleString()}</p>
-            <p style={{ fontSize: '0.85rem', color: 'var(--gray-text)' }}>Total Collected</p>
+            <p style={{ fontSize: '1.3rem', fontWeight: '700', color: '#1565c0' }}>Rs. {totalPaid.toLocaleString()}</p>
+            <p style={{ fontSize: '0.82rem', color: 'var(--gray-text)' }}>Total Collected</p>
           </div>
         </div>
 
-        {/* Year Selector */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-          <label style={{ fontWeight: '600', color: 'var(--green-dark)' }}>Year:</label>
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-            style={{ padding: '8px 14px', borderRadius: '8px', border: '1.5px solid var(--green-border)', fontSize: '0.95rem' }}
-          >
-            {Array.from({ length: 2050 - 2024 + 1 }, (_, i) => 2024 + i).map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Months Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
-          {MONTHS.map((month) => {
-            const fee = getFeeForMonth(month);
-            const isPaid = fee?.paid;
-            return (
-              <div key={month} style={{
-                backgroundColor: 'var(--white)',
-                borderRadius: 'var(--radius)',
-                padding: '1rem',
-                boxShadow: 'var(--shadow)',
-                border: `2px solid ${isPaid ? 'var(--green-main)' : '#e0e0e0'}`,
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}>
-                <div>
-                  <p style={{ fontWeight: '600', fontSize: '0.95rem' }}>{month}</p>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--gray-text)' }}>
-                    {isPaid ? `Paid: ${fee.paid_date}` : 'Not Paid'}
-                  </p>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end' }}>
-                  <button
-                    onClick={() => toggleFee(month)}
-                    style={{
-                      backgroundColor: isPaid ? '#ef5350' : 'var(--green-main)',
-                      color: 'white', border: 'none', padding: '6px 12px',
-                      borderRadius: '8px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: '600',
-                    }}
-                  >
-                    {isPaid ? '✕ Unpay' : '✓ Mark Paid'}
-                  </button>
-                  {isPaid && (
+        {/* Years Grid */}
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--gray-text)' }}>Loading...</div>
+        ) : (
+          <div className="years-grid">
+            {YEARS.map((year) => {
+              const fee = getFeeForYear(year);
+              const isPaid = fee?.paid;
+              return (
+                <div key={year} className="year-card" style={{
+                  border: `2px solid ${isPaid ? 'var(--green-main)' : '#e0e0e0'}`,
+                }}>
+                  <div>
+                    <p style={{ fontWeight: '700', fontSize: '1rem', color: isPaid ? 'var(--green-dark)' : 'var(--text-dark)' }}>{year}</p>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--gray-text)', marginTop: '2px' }}>
+                      {isPaid ? `Paid: ${fee.paid_date}` : 'Not Paid'}
+                    </p>
+                  </div>
+                  <div className="year-btns" style={{ display: 'flex', flexDirection: 'column', gap: '5px', alignItems: 'flex-end' }}>
                     <button
-                      onClick={() => setSelectedInvoice({ ...fee, month, memberName: member?.name, fatherName: member?.father_name, memberId: member?.id, phone: member?.phone })}
+                      onClick={() => toggleFee(year)}
                       style={{
-                        backgroundColor: '#1565c0', color: 'white', border: 'none',
-                        padding: '6px 12px', borderRadius: '8px', cursor: 'pointer',
-                        fontSize: '0.78rem', fontWeight: '600',
+                        backgroundColor: isPaid ? '#ef5350' : 'var(--green-main)',
+                        color: 'white', border: 'none', padding: '5px 10px',
+                        borderRadius: '8px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600',
+                        whiteSpace: 'nowrap',
                       }}
                     >
-                      🧾 Invoice
+                      {isPaid ? '✕ Unpay' : '✓ Mark Paid'}
                     </button>
-                  )}
+                    {isPaid && (
+                      <button
+                        onClick={() => setSelectedInvoice({
+                          ...fee,
+                          year,
+                          memberName: member?.name,
+                          fatherName: member?.father_name,
+                          memberId: member?.id,
+                          phone: member?.phone,
+                        })}
+                        style={{
+                          backgroundColor: '#1565c0', color: 'white', border: 'none',
+                          padding: '5px 10px', borderRadius: '8px', cursor: 'pointer',
+                          fontSize: '0.75rem', fontWeight: '600', whiteSpace: 'nowrap',
+                        }}
+                      >
+                        🧾 Invoice
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Invoice Modal */}
         {selectedInvoice && (
@@ -207,59 +262,63 @@ export default function FeesPage({ params }: { params: Promise<{ id: string }> }
             zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem',
           }}>
             <div style={{
-              backgroundColor: 'white', borderRadius: 'var(--radius)', padding: '2rem',
-              width: '100%', maxWidth: '450px', boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+              backgroundColor: 'white', borderRadius: 'var(--radius)', padding: '1.5rem',
+              width: '100%', maxWidth: '420px', boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+              maxHeight: '90vh', overflowY: 'auto',
             }} id="invoice">
 
               {/* Invoice Header */}
-              <div style={{ textAlign: 'center', borderBottom: '2px solid var(--green-main)', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
-                <h2 style={{ color: 'var(--green-dark)', fontSize: '1.4rem' }}>🕌 Naliya Mandwi Junagadh Muslim Welfare Jamat</h2>
-                <p style={{ color: 'var(--gray-text)', fontSize: '0.85rem' }}></p>
-                <p style={{ color: 'var(--gray-text)', fontSize: '0.85rem', marginTop: '4px' }}>Fee Receipt</p>
+              <div style={{ textAlign: 'center', borderBottom: '2px solid var(--green-main)', paddingBottom: '1rem', marginBottom: '1.2rem' }}>
+                <h2 style={{ color: 'var(--green-dark)', fontSize: '1.1rem' }}>🕌 Naliya Mandwi Junagadh Muslim Welfare Jamat</h2>
+                <p style={{ color: 'var(--gray-text)', fontSize: '0.82rem' }}>Karachi Chapter</p>
+                <p style={{ color: 'var(--gray-text)', fontSize: '0.82rem', marginTop: '4px' }}>Fee Receipt</p>
               </div>
 
               {/* Invoice Details */}
-              <div style={{ marginBottom: '1.5rem' }}>
+              <div style={{ marginBottom: '1.2rem' }}>
                 {[
                   ['Member Name', selectedInvoice.memberName],
                   ['Father Name', selectedInvoice.fatherName],
                   ['Member ID', selectedInvoice.memberId],
                   ['Phone', selectedInvoice.phone],
-                  ['Month', `${selectedInvoice.month} ${selectedInvoice.year}`],
+                  ['Year', selectedInvoice.year],
+                  ['Paid Date', selectedInvoice.paid_date],
                   ['Amount', 'Rs. 1,000'],
                   ['Status', '✅ Paid'],
-                  ['Paid Date', selectedInvoice.paid_date],
                 ].map(([label, value]) => (
-                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
-                    <span style={{ fontSize: '0.85rem', color: 'var(--gray-text)' }}>{label}</span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: '600', color: 'var(--text-dark)' }}>{value}</span>
+                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid #f0f0f0', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '0.82rem', color: 'var(--gray-text)', flexShrink: 0 }}>{label}</span>
+                    <span style={{ fontSize: '0.88rem', fontWeight: '600', color: 'var(--text-dark)', textAlign: 'right' }}>{value}</span>
                   </div>
                 ))}
               </div>
 
               {/* Green Line + Signature */}
-              <div style={{ borderTop: '2px solid var(--green-main)', marginBottom: '1.5rem', paddingTop: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end', marginTop: '2rem' }}>
+              <div style={{ borderTop: '2px solid var(--green-main)', marginBottom: '1.2rem', paddingTop: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ borderTop: '1.5px solid #333', width: '150px', marginBottom: '6px' }} />
-                    <p style={{ fontSize: '0.78rem', color: 'var(--gray-text)' }}>Authorized Signature</p>
+                    <div style={{ borderTop: '1.5px solid #333', width: '140px', marginBottom: '6px' }} />
+                    <p style={{ fontSize: '0.75rem', color: 'var(--gray-text)' }}>Authorized Signature</p>
                   </div>
                 </div>
               </div>
 
               {/* Buttons */}
-              <div className="no-print" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div className="no-print" style={{ display: 'flex', gap: '0.5rem' }}>
                 <button onClick={printInvoice} style={{
                   flex: 1, backgroundColor: 'var(--green-main)', color: 'white',
-                  border: 'none', padding: '10px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600',
+                  border: 'none', padding: '10px', borderRadius: '8px', cursor: 'pointer',
+                  fontWeight: '600', fontSize: '0.88rem',
                 }}>🖨️ Print</button>
                 <button onClick={() => shareWhatsApp(selectedInvoice)} style={{
                   flex: 1, backgroundColor: '#25d366', color: 'white',
-                  border: 'none', padding: '10px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600',
+                  border: 'none', padding: '10px', borderRadius: '8px', cursor: 'pointer',
+                  fontWeight: '600', fontSize: '0.88rem',
                 }}>📱 WhatsApp</button>
                 <button onClick={() => setSelectedInvoice(null)} style={{
                   flex: 1, backgroundColor: '#ef5350', color: 'white',
-                  border: 'none', padding: '10px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600',
+                  border: 'none', padding: '10px', borderRadius: '8px', cursor: 'pointer',
+                  fontWeight: '600', fontSize: '0.88rem',
                 }}>✕ Close</button>
               </div>
             </div>
