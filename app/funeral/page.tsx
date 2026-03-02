@@ -47,7 +47,7 @@ export default function FuneralPage() {
 `🕊️ *Inna Lillahi Wa Inna Ilayhi Raji'un* 🕊️
 
 *Naliya Mandwi Junagadh Muslim Welfare Jamat*
-*Karachi Chapter*
+
 ━━━━━━━━━━━━━━━━━━━━
 
 Bahut afsos ke saath yeh itlaa di jati hai ke hamare aziz:
@@ -72,7 +72,7 @@ ${funeralDetails.extraNote ? `📝 *Note:* ${funeralDetails.extraNote}\n` : ''}
 Tamam ahbaab se guzarish hai ke apni duaon mein yaad rakhein.
 
 _Naliya Mandwi Junagadh Muslim Welfare Jamat_
-_Karachi Chapter_`;
+`;
     return msg;
   };
 

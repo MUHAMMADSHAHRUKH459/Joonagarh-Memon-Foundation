@@ -79,7 +79,7 @@ export default function FeesPage({ params }: { params: Promise<{ id: string }> }
 
   const shareWhatsApp = (fee: any) => {
     const phone = member?.phone?.replace(/[^0-9]/g, '');
-    const msg = `🧾 *Fee Invoice*\n\n👤 Name: ${member?.name}\n👨 Father Name: ${member?.father_name}\n🪪 Member ID: ${member?.id}\n📱 Phone: ${member?.phone}\n📅 Year: ${fee.year}\n💰 Amount: Rs. 1,000\n✅ Status: Paid\n📆 Paid Date: ${fee.paid_date}\n\n_Naliya Mandwi Junagadh Muslim Welfare Jamat - Karachi Chapter_`;
+    const msg = `🧾 *Fee Invoice*\n\n👤 Name: ${member?.name}\n👨 Father Name: ${member?.father_name}\n🪪 Member ID: ${member?.id}\n📱 Phone: ${member?.phone}\n📅 Year: ${fee.year}\n💰 Amount: Rs. 1,000\n✅ Status: Paid\n📆 Paid Date: ${fee.paid_date}\n\n_Naliya Mandwi Junagadh Muslim Welfare Jamat`;
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
     window.open(url, '_blank');
   };
@@ -89,70 +89,107 @@ export default function FeesPage({ params }: { params: Promise<{ id: string }> }
       <Navbar />
 
       <style>{`
-        .fees-stats-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 1rem;
-          margin-bottom: 1.5rem;
-        }
-        .years-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 1rem;
-          margin-bottom: 2rem;
-        }
-        .year-card {
-          background-color: var(--white);
-          border-radius: var(--radius);
-          padding: 1rem;
-          box-shadow: var(--shadow);
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-        .member-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          flex-wrap: wrap;
-          gap: 0.5rem;
-        }
-        @media (max-width: 600px) {
-          .fees-stats-grid {
-            grid-template-columns: 1fr !important;
-            gap: 0.75rem;
-          }
-          .years-grid {
-            grid-template-columns: 1fr 1fr !important;
-            gap: 0.75rem;
-          }
-          .year-card {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 0.5rem;
-          }
-          .year-btns {
-            display: flex !important;
-            flex-direction: row !important;
-            width: 100%;
-          }
-          .year-btns button {
-            flex: 1;
-          }
-          .member-header {
-            flex-direction: column;
-            align-items: flex-start;
-          }
-          .page-pad {
-            padding: 1rem !important;
-          }
-        }
-        @media print {
-          .no-print {
-            display: none !important;
-          }
-        }
-      `}</style>
+  .fees-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .years-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .year-card {
+    background-color: var(--white);
+    border-radius: var(--radius);
+    padding: 1rem;
+    box-shadow: var(--shadow);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .member-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  @media (max-width: 600px) {
+    .fees-stats-grid {
+      grid-template-columns: 1fr !important;
+      gap: 0.75rem;
+    }
+
+    .years-grid {
+      grid-template-columns: 1fr 1fr !important;
+      gap: 0.75rem;
+    }
+
+    .year-card {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+
+    .year-btns {
+      display: flex !important;
+      flex-direction: row !important;
+      width: 100%;
+    }
+
+    .year-btns button {
+      flex: 1;
+    }
+
+    .member-header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .page-pad {
+      padding: 1rem !important;
+    }
+  }
+
+  /* ===== 80mm Thermal Print Setup ===== */
+  @media print {
+
+    body * {
+      visibility: hidden;
+    }
+
+    #invoice, #invoice * {
+      visibility: visible;
+    }
+
+    #invoice {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 80mm;
+      max-width: 80mm;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+      padding: 10px;
+    }
+
+    .no-print {
+      display: none !important;
+    }
+
+    @page {
+      size: 80mm auto;
+      margin: 0;
+    }
+  }
+`}</style>
 
       <div className="page-pad" style={{ padding: '2rem', maxWidth: '900px', margin: '0 auto' }}>
 
@@ -270,7 +307,7 @@ export default function FeesPage({ params }: { params: Promise<{ id: string }> }
               {/* Invoice Header */}
               <div style={{ textAlign: 'center', borderBottom: '2px solid var(--green-main)', paddingBottom: '1rem', marginBottom: '1.2rem' }}>
                 <h2 style={{ color: 'var(--green-dark)', fontSize: '1.1rem' }}>🕌 Naliya Mandwi Junagadh Muslim Welfare Jamat</h2>
-                <p style={{ color: 'var(--gray-text)', fontSize: '0.82rem' }}>Karachi Chapter</p>
+                
                 <p style={{ color: 'var(--gray-text)', fontSize: '0.82rem', marginTop: '4px' }}>Fee Receipt</p>
               </div>
 
