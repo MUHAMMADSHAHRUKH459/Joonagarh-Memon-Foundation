@@ -9,8 +9,27 @@ interface Child {
   bForm: string;
 }
 
+// ✅ MemberFormData replaces `any` in onSubmit
+interface MemberFormData {
+  name: string;
+  fatherName: string;
+  cast: string;
+  dateOfBirth: string;
+  gender: string;
+  cnic: string;
+  bForm: string;
+  phone: string;
+  email: string;
+  address: string;
+  occupation: string;
+  maritalStatus: string;
+  wifeName: string;
+  wifeCnic: string;
+  children: Child[];
+}
+
 interface MemberFormProps {
-  onSubmit: (member: any) => void;
+  onSubmit: (member: MemberFormData) => void;
   onCancel: () => void;
 }
 
@@ -23,6 +42,7 @@ const inputStyle = {
   outline: 'none',
   backgroundColor: 'var(--white)',
   color: 'var(--text-dark)',
+  boxSizing: 'border-box' as const,
 };
 
 const labelStyle = {
@@ -53,8 +73,7 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
 
   const [children, setChildren] = useState<Child[]>([]);
 
-  // Calculate age from date of birth
-  const getAge = (dob: string) => {
+  const getAge = (dob: string): number => {
     if (!dob) return 0;
     const today = new Date();
     const birth = new Date(dob);
@@ -72,7 +91,7 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
     setChildren([...children, { name: '', age: '', gender: 'Male', bForm: '' }]);
   };
 
-  const updateChild = (index: number, field: string, value: string) => {
+  const updateChild = (index: number, field: keyof Child, value: string) => {
     const updated = [...children];
     updated[index] = { ...updated[index], [field]: value };
     setChildren(updated);
@@ -98,6 +117,58 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
       justifyContent: 'center',
       padding: '1rem',
     }}>
+      <style>{`
+        .member-form-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1rem;
+          margin-bottom: 1rem;
+        }
+        .wife-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1rem;
+          margin-bottom: 1rem;
+        }
+
+        /* Child row — 2x2 grid on mobile */
+        .child-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr 1fr auto;
+          gap: 0.5rem;
+          margin-bottom: 0.75rem;
+          align-items: center;
+        }
+        .child-remove-btn {
+          background: #ff4444;
+          color: white;
+          border: none;
+          border-radius: 8px;
+          padding: 8px 12px;
+          cursor: pointer;
+          font-size: 0.9rem;
+          white-space: nowrap;
+        }
+
+        @media (max-width: 600px) {
+          .member-form-grid {
+            grid-template-columns: 1fr;
+          }
+          .wife-grid {
+            grid-template-columns: 1fr;
+          }
+          .child-row {
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto auto;
+          }
+          .child-row .child-name  { grid-column: 1 / 3; }
+          .child-row .child-age   { grid-column: 1 / 2; }
+          .child-row .child-gender{ grid-column: 2 / 3; }
+          .child-row .child-bform { grid-column: 1 / 2; }
+          .child-row .child-remove{ grid-column: 2 / 3; justify-self: end; align-self: end; }
+        }
+      `}</style>
+
       <div style={{
         backgroundColor: 'var(--white)',
         borderRadius: 'var(--radius)',
@@ -132,13 +203,13 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
 
         <form onSubmit={handleSubmit}>
           {/* Basic Info */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+          <div className="member-form-grid">
             <div>
               <label style={labelStyle}>Full Name *</label>
               <input style={inputStyle} name="name" value={form.name} onChange={handleChange} required placeholder="e.g. Shahrukh Memon" />
             </div>
             <div>
-              <label style={labelStyle}>Father's Name *</label>
+              <label style={labelStyle}>Father&apos;s Name *</label>
               <input style={inputStyle} name="fatherName" value={form.fatherName} onChange={handleChange} required placeholder="Father's name" />
             </div>
             <div>
@@ -156,8 +227,6 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
                 <option>Female</option>
               </select>
             </div>
-
-            {/* CNIC or B-Form based on age */}
             <div>
               <label style={labelStyle}>{isUnder18 ? 'B-Form Number *' : 'CNIC Number *'}</label>
               <input
@@ -169,7 +238,6 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
                 placeholder={isUnder18 ? 'B-Form number' : '42101-1234567-1'}
               />
             </div>
-
             <div>
               <label style={labelStyle}>Phone *</label>
               <input style={inputStyle} name="phone" value={form.phone} onChange={handleChange} required placeholder="03XX-XXXXXXX" />
@@ -188,7 +256,7 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
             </div>
           </div>
 
-          {/* Marital Status - only for 18+ */}
+          {/* Marital Status */}
           {!isUnder18 && (
             <>
               <div style={{ marginBottom: '1rem' }}>
@@ -208,20 +276,22 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
                   border: '1px solid var(--green-border)',
                 }}>
                   <h3 style={{ marginBottom: '1rem', fontSize: '1rem' }}>👨‍👩‍👧 Family Details</h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+
+                  {/* Wife Info */}
+                  <div className="wife-grid">
                     <div>
-                      <label style={labelStyle}>Wife's Name</label>
+                      <label style={labelStyle}>Wife&apos;s Name</label>
                       <input style={inputStyle} name="wifeName" value={form.wifeName} onChange={handleChange} placeholder="Wife's name" />
                     </div>
                     <div>
-                      <label style={labelStyle}>Wife's CNIC</label>
+                      <label style={labelStyle}>Wife&apos;s CNIC</label>
                       <input style={inputStyle} name="wifeCnic" value={form.wifeCnic} onChange={handleChange} placeholder="42101-1234567-1" />
                     </div>
                   </div>
 
                   {/* Children */}
                   <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                       <label style={labelStyle}>Children ({children.length})</label>
                       <button type="button" onClick={addChild} style={{
                         backgroundColor: 'var(--green-main)',
@@ -231,31 +301,57 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
                         borderRadius: '8px',
                         cursor: 'pointer',
                         fontSize: '0.85rem',
+                        fontWeight: '600',
                       }}>+ Add Child</button>
                     </div>
+
                     {children.map((child, index) => (
-                      <div key={index} style={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr 1fr 1fr 1fr auto',
-                        gap: '0.5rem',
-                        marginBottom: '0.5rem',
-                        alignItems: 'center',
-                      }}>
-                        <input style={inputStyle} placeholder="Child's name" value={child.name} onChange={(e) => updateChild(index, 'name', e.target.value)} />
-                        <input style={inputStyle} placeholder="Age" type="number" value={child.age} onChange={(e) => updateChild(index, 'age', e.target.value)} />
-                        <select style={inputStyle} value={child.gender} onChange={(e) => updateChild(index, 'gender', e.target.value)}>
+                      <div key={index} className="child-row">
+                        <input
+                          className="child-name"
+                          style={inputStyle}
+                          placeholder="Child's name"
+                          value={child.name}
+                          onChange={(e) => updateChild(index, 'name', e.target.value)}
+                        />
+                        <input
+                          className="child-age"
+                          style={inputStyle}
+                          placeholder="Age"
+                          type="number"
+                          value={child.age}
+                          onChange={(e) => updateChild(index, 'age', e.target.value)}
+                        />
+                        <select
+                          className="child-gender"
+                          style={inputStyle}
+                          value={child.gender}
+                          onChange={(e) => updateChild(index, 'gender', e.target.value)}
+                        >
                           <option>Male</option>
                           <option>Female</option>
                         </select>
-                        <input style={inputStyle} placeholder="B-Form (optional)" value={child.bForm} onChange={(e) => updateChild(index, 'bForm', e.target.value)} />
-                        <button type="button" onClick={() => removeChild(index)} style={{
-                          background: '#ff4444',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '8px',
-                          padding: '8px 12px',
-                          cursor: 'pointer',
-                        }}>✕</button>
+                        <input
+                          className="child-bform"
+                          style={inputStyle}
+                          placeholder="B-Form (optional)"
+                          value={child.bForm}
+                          onChange={(e) => updateChild(index, 'bForm', e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          className="child-remove"
+                          onClick={() => removeChild(index)}
+                          style={{
+                            background: '#ff4444',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            padding: '8px 12px',
+                            cursor: 'pointer',
+                            fontSize: '0.9rem',
+                          }}
+                        >✕</button>
                       </div>
                     ))}
                   </div>
@@ -264,8 +360,8 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
             </>
           )}
 
-          {/* Buttons */}
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
+          {/* Submit Buttons */}
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1rem', flexWrap: 'wrap' }}>
             <button type="button" onClick={onCancel} style={{
               padding: '10px 24px',
               border: '1.5px solid var(--green-border)',

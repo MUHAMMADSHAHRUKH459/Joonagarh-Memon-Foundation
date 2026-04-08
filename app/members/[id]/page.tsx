@@ -5,10 +5,43 @@ import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import { supabase } from '@/lib/supabaseClient';
 
+// ✅ Proper types replacing `any`
+interface Child {
+  name: string;
+  age: string | number;
+  gender: string;
+  bForm?: string;
+}
+
+interface Member {
+  id: string;
+  name: string;
+  father_name: string;
+  member_cast: string;
+  date_of_birth: string;
+  age: string | number;
+  gender: string;
+  cnic: string;
+  b_form: string;
+  phone: string;
+  email: string;
+  address: string;
+  occupation: string;
+  entry_date: string;
+  category: 'under18' | 'senior' | 'adult';
+  voting_eligible: boolean;
+  marital_status: string;
+  wife_name?: string;
+  wife_cnic?: string;
+  children?: Child[];
+  photo_url?: string;
+  is_child?: boolean;
+}
+
 export default function MemberProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const [member, setMember] = useState<any>(null);
+  const [member, setMember] = useState<Member | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -25,7 +58,7 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
       if (error) {
         console.error('Error fetching member:', error);
       } else {
-        setMember(data);
+        setMember(data as Member);
         if (data.photo_url) setPhotoUrl(data.photo_url);
       }
       setLoading(false);
@@ -74,7 +107,9 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
 
     if (member?.photo_url) {
       const fileName = member.photo_url.split('/').pop();
-      await supabase.storage.from('member-photos').remove([fileName]);
+      if (fileName) {
+        await supabase.storage.from('member-photos').remove([fileName]);
+      }
     }
 
     const { error } = await supabase.from('members').delete().eq('id', decodeURIComponent(id));
@@ -91,7 +126,7 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
     }
   };
 
-  const infoRow = (label: string, value: any) => (
+  const infoRow = (label: string, value: string | number | boolean | null | undefined) => (
     <div style={{
       display: 'flex',
       flexWrap: 'wrap',
@@ -107,7 +142,15 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
         color: 'var(--gray-text)',
         flexShrink: 0,
       }}>{label}</span>
-      <span style={{ fontSize: '0.9rem', color: 'var(--text-dark)', fontWeight: '500', flex: 1 }}>{value || '-'}</span>
+      <span style={{
+        fontSize: '0.9rem',
+        color: 'var(--text-dark)',
+        fontWeight: '500',
+        flex: 1,
+        wordBreak: 'break-word',
+      }}>
+        {value !== null && value !== undefined && value !== '' ? String(value) : '-'}
+      </span>
     </div>
   );
 
@@ -116,6 +159,7 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
       <Navbar />
 
       <style>{`
+        /* ===== BUTTONS ===== */
         .profile-buttons {
           display: flex;
           gap: 0.75rem;
@@ -129,7 +173,18 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
           cursor: pointer;
           font-size: 0.88rem;
           font-weight: 600;
+          transition: opacity 0.2s;
+          white-space: nowrap;
         }
+        .profile-btn:hover {
+          opacity: 0.88;
+        }
+        .profile-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        /* ===== HEADER ===== */
         .profile-header {
           display: flex;
           align-items: center;
@@ -137,15 +192,131 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
           padding: 1.5rem;
           background-color: var(--green-dark);
         }
+        .profile-header-text h2 {
+          color: white;
+          font-size: 1.4rem;
+          margin-bottom: 4px;
+        }
+        .profile-header-text p {
+          color: var(--green-border);
+          font-size: 0.85rem;
+          margin-bottom: 0.5rem;
+        }
+        .profile-header-badges {
+          display: flex;
+          gap: 0.5rem;
+          flex-wrap: wrap;
+        }
+
+        /* ===== SECTIONS ===== */
         .profile-info-section {
           padding: 1.2rem 1.5rem;
         }
+        .section-title {
+          margin-bottom: 0.75rem;
+          font-size: 1rem;
+          color: var(--green-dark);
+        }
+
+        /* ===== MARRIED SECTION ===== */
+        .married-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 0.75rem;
+        }
+        .married-card {
+          background-color: var(--green-pale);
+          border: 1px solid var(--green-border);
+          border-radius: var(--radius);
+          padding: 0.9rem 1rem;
+        }
+        .married-card-label {
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: var(--gray-text);
+          margin-bottom: 4px;
+          text-transform: uppercase;
+          letter-spacing: 0.03em;
+        }
+        .married-card-value {
+          font-size: 0.92rem;
+          font-weight: 600;
+          color: var(--text-dark);
+          word-break: break-word;
+        }
+
+        /* ===== CHILDREN GRID ===== */
         .children-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
           gap: 1rem;
         }
-        @media (max-width: 600px) {
+        .child-card {
+          background-color: var(--green-pale);
+          border-radius: var(--radius);
+          padding: 0.75rem;
+          border: 1px solid var(--green-border);
+        }
+        .child-card p {
+          margin: 0;
+        }
+        .child-name {
+          font-weight: 600;
+          font-size: 0.9rem;
+          margin-bottom: 4px !important;
+        }
+        .child-detail {
+          font-size: 0.82rem;
+          color: var(--gray-text);
+          margin-top: 2px !important;
+        }
+
+        /* ===== PHOTO ===== */
+        .photo-wrapper {
+          position: relative;
+          flex-shrink: 0;
+        }
+        .photo-circle {
+          width: 85px;
+          height: 85px;
+          border-radius: 50%;
+          overflow: hidden;
+          border: 3px solid var(--green-light);
+          background-color: var(--green-light);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .photo-upload-btn {
+          position: absolute;
+          bottom: 0;
+          right: 0;
+          background-color: var(--green-main);
+          border-radius: 50%;
+          width: 26px;
+          height: 26px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          font-size: 0.75rem;
+          border: 2px solid white;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 768px) {
+          .profile-info-section {
+            padding: 1rem;
+          }
+          .married-grid {
+            grid-template-columns: 1fr;
+          }
+          .children-grid {
+            grid-template-columns: 1fr 1fr;
+          }
+        }
+
+        @media (max-width: 480px) {
           .profile-buttons {
             flex-direction: column;
           }
@@ -158,22 +329,33 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
             align-items: center;
             text-align: center;
             padding: 1.2rem 1rem;
+            gap: 1rem;
           }
           .profile-header-badges {
-            justify-content: center !important;
+            justify-content: center;
           }
-          .profile-info-section {
-            padding: 1rem;
+          .profile-header-text h2 {
+            font-size: 1.2rem;
           }
           .children-grid {
             grid-template-columns: 1fr 1fr;
+          }
+          .photo-circle {
+            width: 75px;
+            height: 75px;
+          }
+        }
+
+        @media (max-width: 360px) {
+          .children-grid {
+            grid-template-columns: 1fr;
           }
         }
       `}</style>
 
       <div style={{ padding: '1rem', maxWidth: '900px', margin: '0 auto' }}>
 
-        {/* Buttons */}
+        {/* ===== BUTTONS ===== */}
         <div className="profile-buttons">
           <button className="profile-btn" onClick={() => router.back()} style={{
             backgroundColor: 'var(--green-main)', color: 'white',
@@ -198,12 +380,14 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
           </button>
         </div>
 
+        {/* ===== LOADING ===== */}
         {loading && (
           <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--gray-text)' }}>
             Loading profile...
           </div>
         )}
 
+        {/* ===== NOT FOUND ===== */}
         {!loading && !member && (
           <div style={{
             backgroundColor: 'var(--white)', borderRadius: 'var(--radius)',
@@ -214,6 +398,7 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
           </div>
         )}
 
+        {/* ===== MAIN CARD ===== */}
         {!loading && member && (
           <div style={{
             backgroundColor: 'var(--white)', borderRadius: 'var(--radius)',
@@ -222,13 +407,8 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
 
             {/* Header */}
             <div className="profile-header">
-              <div style={{ position: 'relative', flexShrink: 0 }}>
-                <div style={{
-                  width: '85px', height: '85px', borderRadius: '50%',
-                  overflow: 'hidden', border: '3px solid var(--green-light)',
-                  backgroundColor: 'var(--green-light)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
+              <div className="photo-wrapper">
+                <div className="photo-circle">
                   {photoUrl ? (
                     <img src={photoUrl} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
@@ -237,22 +417,16 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
                     </span>
                   )}
                 </div>
-                <label style={{
-                  position: 'absolute', bottom: 0, right: 0,
-                  backgroundColor: 'var(--green-main)', borderRadius: '50%',
-                  width: '26px', height: '26px',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', fontSize: '0.75rem', border: '2px solid white',
-                }}>
+                <label className="photo-upload-btn">
                   {uploading ? '⏳' : '📷'}
                   <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} />
                 </label>
               </div>
 
-              <div style={{ flex: 1 }}>
-                <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '4px' }}>{member.name}</h2>
-                <p style={{ color: 'var(--green-border)', fontSize: '0.85rem', marginBottom: '0.5rem' }}>ID: {member.id}</p>
-                <div className="profile-header-badges" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div className="profile-header-text" style={{ flex: 1 }}>
+                <h2>{member.name}</h2>
+                <p>ID: {member.id}</p>
+                <div className="profile-header-badges">
                   <span style={{
                     backgroundColor: member.voting_eligible ? 'var(--green-light)' : '#ef5350',
                     color: 'white', padding: '3px 10px', borderRadius: '12px',
@@ -271,9 +445,9 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
               </div>
             </div>
 
-            {/* Personal Info */}
+            {/* ===== Personal Info ===== */}
             <div className="profile-info-section">
-              <h3 style={{ marginBottom: '0.75rem', fontSize: '1rem', color: 'var(--green-dark)' }}>👤 Personal Information</h3>
+              <h3 className="section-title">👤 Personal Information</h3>
               {infoRow('Member ID', member.id)}
               {infoRow('Full Name', member.name)}
               {infoRow("Father's Name", member.father_name)}
@@ -289,34 +463,54 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
               {infoRow('Entry Date', member.entry_date)}
             </div>
 
-            {/* Marital Info */}
+            {/* ===== Marital Info ===== */}
             {member.category !== 'under18' && (
               <div className="profile-info-section" style={{ borderTop: '1px solid var(--green-pale)' }}>
-                <h3 style={{ marginBottom: '0.75rem', fontSize: '1rem', color: 'var(--green-dark)' }}>💍 Marital Information</h3>
-                {infoRow('Marital Status', member.marital_status)}
+                <h3 className="section-title">💍 Marital Information</h3>
+
+                {/* Status badge row */}
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <span style={{
+                    display: 'inline-block',
+                    backgroundColor: member.marital_status === 'Married' ? 'var(--green-main)' : 'var(--gray-text)',
+                    color: 'white',
+                    padding: '4px 14px',
+                    borderRadius: '12px',
+                    fontSize: '0.8rem',
+                    fontWeight: '600',
+                  }}>
+                    {member.marital_status === 'Married' ? '💍 Married' : '🧑 Unmarried'}
+                  </span>
+                </div>
+
                 {member.marital_status === 'Married' && (
-                  <>
-                    {infoRow("Wife's Name", member.wife_name)}
-                    {infoRow("Wife's CNIC", member.wife_cnic)}
-                  </>
+                  <div className="married-grid">
+                    <div className="married-card">
+                      <div className="married-card-label">👩 Wife&apos;s Name</div>
+                      <div className="married-card-value">{member.wife_name || '-'}</div>
+                    </div>
+                    <div className="married-card">
+                      <div className="married-card-label">🪪 Wife&apos;s CNIC</div>
+                      <div className="married-card-value">{member.wife_cnic || '-'}</div>
+                    </div>
+                  </div>
                 )}
               </div>
             )}
 
-            {/* Children */}
+            {/* ===== Children ===== */}
             {member.marital_status === 'Married' && member.children && member.children.length > 0 && (
               <div className="profile-info-section" style={{ borderTop: '1px solid var(--green-pale)' }}>
-                <h3 style={{ marginBottom: '0.75rem', fontSize: '1rem', color: 'var(--green-dark)' }}>👨‍👩‍👧 Children ({member.children.length})</h3>
+                <h3 className="section-title">👨‍👩‍👧 Children ({member.children.length})</h3>
                 <div className="children-grid">
-                  {member.children.map((child: any, index: number) => (
-                    <div key={index} style={{
-                      backgroundColor: 'var(--green-pale)', borderRadius: 'var(--radius)',
-                      padding: '0.75rem', border: '1px solid var(--green-border)',
-                    }}>
-                      <p style={{ fontWeight: '600', fontSize: '0.9rem' }}>{child.name}</p>
-                      <p style={{ fontSize: '0.82rem', color: 'var(--gray-text)' }}>Age: {child.age}</p>
-                      <p style={{ fontSize: '0.82rem', color: 'var(--gray-text)' }}>Gender: {child.gender}</p>
-                      {child.bForm && <p style={{ fontSize: '0.82rem', color: 'var(--gray-text)' }}>B-Form: {child.bForm}</p>}
+                  {member.children.map((child: Child, index: number) => (
+                    <div key={index} className="child-card">
+                      <p className="child-name">
+                        {child.gender === 'Female' ? '👧' : '👦'} {child.name}
+                      </p>
+                      <p className="child-detail">Age: {child.age}</p>
+                      <p className="child-detail">Gender: {child.gender}</p>
+                      {child.bForm && <p className="child-detail">B-Form: {child.bForm}</p>}
                     </div>
                   ))}
                 </div>

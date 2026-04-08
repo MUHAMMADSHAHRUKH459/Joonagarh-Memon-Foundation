@@ -7,25 +7,80 @@ import { supabase } from '@/lib/supabaseClient';
 
 const YEARS = Array.from({ length: 2050 - 2024 + 1 }, (_, i) => 2024 + i);
 
+interface FeeRecord {
+  id: string;
+  member_id: string;
+  year: number;
+  month: string;
+  amount: number;
+  paid: boolean;
+  paid_date: string | null;
+}
+
+interface Member {
+  id: string;
+  name: string;
+  father_name: string;
+  phone: string;
+  entry_date: string;
+}
+
+interface InvoiceData {
+  id: string;
+  member_id: string;
+  year: number;
+  month: string;
+  amount: number;
+  paid: boolean;
+  paid_date: string | null;
+  memberName: string;
+  fatherName: string;
+  memberId: string;
+  phone: string;
+}
+
 export default function FeesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const [member, setMember] = useState<any>(null);
-  const [fees, setFees] = useState<any[]>([]);
+  const [member, setMember] = useState<Member | null>(null);
+  const [fees, setFees] = useState<FeeRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [selectedInvoice, setSelectedInvoice] = useState<InvoiceData | null>(null);
+  const [customDueAmount, setCustomDueAmount] = useState<string>('');
 
   useEffect(() => {
-    fetchData();
+    const loadData = async () => {
+      setLoading(true);
+      const decodedId = decodeURIComponent(id);
+
+      const { data: memberData } = await supabase
+        .from('members')
+        .select('*')
+        .eq('id', decodedId)
+        .single();
+
+      setMember(memberData);
+
+      const { data: feesData } = await supabase
+        .from('fees')
+        .select('*')
+        .eq('member_id', decodedId);
+
+      setFees((feesData as FeeRecord[]) || []);
+      setLoading(false);
+    };
+
+    loadData();
   }, [id]);
 
   const fetchData = async () => {
     setLoading(true);
+    const decodedId = decodeURIComponent(id);
 
     const { data: memberData } = await supabase
       .from('members')
       .select('*')
-      .eq('id', decodeURIComponent(id))
+      .eq('id', decodedId)
       .single();
 
     setMember(memberData);
@@ -33,9 +88,9 @@ export default function FeesPage({ params }: { params: Promise<{ id: string }> }
     const { data: feesData } = await supabase
       .from('fees')
       .select('*')
-      .eq('member_id', decodeURIComponent(id));
+      .eq('member_id', decodedId);
 
-    setFees(feesData || []);
+    setFees((feesData as FeeRecord[]) || []);
     setLoading(false);
   };
 
@@ -69,6 +124,40 @@ export default function FeesPage({ params }: { params: Promise<{ id: string }> }
     return fees.find((f) => f.year === year && f.month === 'Yearly');
   };
 
+  // ─── Maintenance helpers ───────────────────────────────────────────────────
+
+  // Member ki entry year se lekar current year tak ke saare years
+  const getMembershipStartYear = (): number => {
+    if (!member?.entry_date) return 2024;
+    const parts = member.entry_date.split('/');          // dd/MM/yyyy
+    if (parts.length === 3) return parseInt(parts[2]);
+    return new Date(member.entry_date).getFullYear() || 2024;
+  };
+
+  const currentYear = new Date().getFullYear();
+
+  // Entry year se current year tak ke dues check karo
+  const getDuesYears = (): { year: number; paid: boolean; paidDate: string | null }[] => {
+    const startYear = getMembershipStartYear();
+    const result = [];
+    for (let y = startYear; y <= currentYear; y++) {
+      const fee = getFeeForYear(y);
+      result.push({
+        year: y,
+        paid: fee?.paid ?? false,
+        paidDate: fee?.paid_date ?? null,
+      });
+    }
+    return result;
+  };
+
+  const duesYears = getDuesYears();
+  const unpaidDuesYears = duesYears.filter((d) => !d.paid);
+  const totalDuesAmount = unpaidDuesYears.length * 1000;
+  const allClear = unpaidDuesYears.length === 0;
+
+  // ──────────────────────────────────────────────────────────────────────────
+
   const paidCount = fees.filter((f) => f.paid && f.month === 'Yearly').length;
   const unpaidCount = YEARS.length - paidCount;
   const totalPaid = paidCount * 1000;
@@ -77,9 +166,28 @@ export default function FeesPage({ params }: { params: Promise<{ id: string }> }
     window.print();
   };
 
-  const shareWhatsApp = (fee: any) => {
+  const shareWhatsApp = (fee: InvoiceData) => {
     const phone = member?.phone?.replace(/[^0-9]/g, '');
-    const msg = `🧾 *Fee Invoice*\n\n👤 Name: ${member?.name}\n👨 Father Name: ${member?.father_name}\n🪪 Member ID: ${member?.id}\n📱 Phone: ${member?.phone}\n📅 Year: ${fee.year}\n💰 Amount: Rs. 1,000\n✅ Status: Paid\n📆 Paid Date: ${fee.paid_date}\n\n_Naliya Mandwi Junagadh Muslim Welfare Jamat`;
+
+    const duesSection = allClear
+      ? `✅ Maintenance Status: ALL CLEAR — No dues pending`
+      : `⚠️ Pending Dues: ${unpaidDuesYears.map((d) => d.year).join(', ')}\n💸 Total Dues: Rs. ${Number(customDueAmount).toLocaleString()}`;
+
+    const msg =
+      `🧾 *Fee Invoice*\n\n` +
+      `👤 Name: ${member?.name}\n` +
+      `👨 Father Name: ${member?.father_name}\n` +
+      `🪪 Member ID: ${member?.id}\n` +
+      `📱 Phone: ${member?.phone}\n` +
+      `📅 Year: ${fee.year}\n` +
+      `💰 Amount: Rs. 1,000\n` +
+      `✅ Status: Paid\n` +
+      `📆 Paid Date: ${fee.paid_date}\n\n` +
+      `──────────────────\n` +
+      `📊 *Maintenance History*\n` +
+      `${duesSection}\n\n` +
+      `_Naliya Mandwi Junagadh Muslim Welfare Jamat_`;
+
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
     window.open(url, '_blank');
   };
@@ -160,35 +268,23 @@ export default function FeesPage({ params }: { params: Promise<{ id: string }> }
 
   /* ===== 80mm Thermal Print Setup ===== */
   @media print {
-
-    body * {
-      visibility: hidden;
-    }
-
-    #invoice, #invoice * {
-      visibility: visible;
-    }
-
+    body * { visibility: hidden; }
+    #invoice, #invoice * { visibility: visible; }
     #invoice {
       position: absolute;
-      left: 0;
-      top: 0;
-      width: 80mm;
-      max-width: 80mm;
+      left: 0; top: 0;
+      width: 80mm; max-width: 80mm;
       box-shadow: none !important;
       border-radius: 0 !important;
       padding: 10px;
     }
-
-    .no-print {
-      display: none !important;
-    }
-
-    @page {
-      size: 80mm auto;
-      margin: 0;
-    }
+    #invoice .no-print { display: none !important; visibility: hidden !important; }
+    #invoice .print-only { display: inline !important; visibility: visible !important; }
+    .no-print { display: none !important; }
+    @page { size: 80mm auto; margin: 0; }
   }
+
+  .print-only { display: none; }
 `}</style>
 
       <div className="page-pad" style={{ padding: '2rem', maxWidth: '900px', margin: '0 auto' }}>
@@ -268,14 +364,17 @@ export default function FeesPage({ params }: { params: Promise<{ id: string }> }
                     </button>
                     {isPaid && (
                       <button
-                        onClick={() => setSelectedInvoice({
-                          ...fee,
-                          year,
-                          memberName: member?.name,
-                          fatherName: member?.father_name,
-                          memberId: member?.id,
-                          phone: member?.phone,
-                        })}
+                        onClick={() => {
+                          setSelectedInvoice({
+                            ...fee,
+                            year,
+                            memberName: member?.name ?? '',
+                            fatherName: member?.father_name ?? '',
+                            memberId: member?.id ?? '',
+                            phone: member?.phone ?? '',
+                          });
+                          setCustomDueAmount(String(unpaidDuesYears.length * 1000));
+                        }}
                         style={{
                           backgroundColor: '#1565c0', color: 'white', border: 'none',
                           padding: '5px 10px', borderRadius: '8px', cursor: 'pointer',
@@ -307,22 +406,21 @@ export default function FeesPage({ params }: { params: Promise<{ id: string }> }
               {/* Invoice Header */}
               <div style={{ textAlign: 'center', borderBottom: '2px solid var(--green-main)', paddingBottom: '1rem', marginBottom: '1.2rem' }}>
                 <h2 style={{ color: 'var(--green-dark)', fontSize: '1.1rem' }}>🕌 Naliya Mandwi Junagadh Muslim Welfare Jamat</h2>
-                
                 <p style={{ color: 'var(--gray-text)', fontSize: '0.82rem', marginTop: '4px' }}>Fee Receipt</p>
               </div>
 
               {/* Invoice Details */}
               <div style={{ marginBottom: '1.2rem' }}>
-                {[
+                {([
                   ['Member Name', selectedInvoice.memberName],
                   ['Father Name', selectedInvoice.fatherName],
                   ['Member ID', selectedInvoice.memberId],
                   ['Phone', selectedInvoice.phone],
-                  ['Year', selectedInvoice.year],
-                  ['Paid Date', selectedInvoice.paid_date],
+                  ['Year', String(selectedInvoice.year)],
+                  ['Paid Date', selectedInvoice.paid_date ?? '—'],
                   ['Amount', 'Rs. 1,000'],
                   ['Status', '✅ Paid'],
-                ].map(([label, value]) => (
+                ] as [string, string][]).map(([label, value]) => (
                   <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid #f0f0f0', gap: '0.5rem' }}>
                     <span style={{ fontSize: '0.82rem', color: 'var(--gray-text)', flexShrink: 0 }}>{label}</span>
                     <span style={{ fontSize: '0.88rem', fontWeight: '600', color: 'var(--text-dark)', textAlign: 'right' }}>{value}</span>
@@ -330,7 +428,114 @@ export default function FeesPage({ params }: { params: Promise<{ id: string }> }
                 ))}
               </div>
 
-              {/* Green Line + Signature */}
+              {/* ─── Maintenance Dues Section ─── */}
+              <div style={{
+                borderTop: '2px dashed #e0e0e0',
+                paddingTop: '1rem',
+                marginBottom: '1.2rem',
+              }}>
+                <p style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--text-dark)', marginBottom: '0.6rem' }}>
+                  📊 Maintenance History
+                </p>
+
+                {/* All Clear Banner */}
+                {allClear ? (
+                  <div style={{
+                    backgroundColor: '#e8f5e9',
+                    border: '1.5px solid var(--green-main)',
+                    borderRadius: '8px',
+                    padding: '0.6rem 0.9rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                  }}>
+                    <span style={{ fontSize: '1.1rem' }}>✅</span>
+                    <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--green-dark)' }}>
+                      ALL CLEAR — No pending dues
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    {/* Unpaid dues warning */}
+                    <div style={{
+                      backgroundColor: '#fff3e0',
+                      border: '1.5px solid #ff9800',
+                      borderRadius: '8px',
+                      padding: '0.6rem 0.9rem',
+                      marginBottom: '0.6rem',
+                    }}>
+                      <p style={{ fontSize: '0.78rem', fontWeight: '700', color: '#e65100', marginBottom: '0.3rem' }}>
+                        ⚠️ Pending Maintenance Dues
+                      </p>
+                      <p style={{ fontSize: '0.78rem', color: '#bf360c' }}>
+                        Years: {unpaidDuesYears.map((d) => d.year).join(', ')}
+                      </p>
+                      <p style={{ fontSize: '0.82rem', fontWeight: '700', color: '#bf360c', marginTop: '0.3rem' }}>
+                        Total Due: Rs. {totalDuesAmount.toLocaleString()}
+                      </p>
+
+                      {/* Custom Amount Input - screen only */}
+                      <div className="no-print" style={{ marginTop: '0.6rem', paddingTop: '0.6rem', borderTop: '1px dashed #ffb74d' }}>
+                        <p style={{ fontSize: '0.75rem', color: '#e65100', marginBottom: '0.3rem', fontWeight: '600' }}>
+                          ✏️ Invoice par amount adjust karein:
+                        </p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#bf360c' }}>Rs.</span>
+                          <input
+                            type="number"
+                            value={customDueAmount}
+                            onChange={(e) => setCustomDueAmount(e.target.value)}
+                            style={{
+                              border: '1.5px solid #ff9800',
+                              borderRadius: '6px',
+                              padding: '4px 8px',
+                              fontSize: '0.88rem',
+                              fontWeight: '700',
+                              color: '#bf360c',
+                              width: '120px',
+                              outline: 'none',
+                            }}
+                          />
+                        </div>
+                        <p style={{ fontSize: '0.72rem', color: '#e65100', marginTop: '0.25rem' }}>
+                          (Default: Rs. {totalDuesAmount.toLocaleString()} — aap change kar sakte hain)
+                        </p>
+                      </div>
+                      {/* Print only - sirf amount dikhao */}
+                      <p className="print-only" style={{ fontSize: '0.82rem', fontWeight: '700', color: '#bf360c', marginTop: '0.4rem' }}>
+                        Invoice Amount: Rs. {Number(customDueAmount).toLocaleString()}
+                      </p>
+                    </div>
+                  </>
+                )}
+
+                {/* Year-by-year summary table */}
+                <div style={{ marginTop: '0.6rem' }}>
+                  {duesYears.map((d) => (
+                    <div key={d.year} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '4px 0',
+                      borderBottom: '1px solid #f5f5f5',
+                    }}>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--gray-text)' }}>{d.year}</span>
+                      {d.paid ? (
+                        <span style={{ fontSize: '0.78rem', color: 'var(--green-dark)', fontWeight: '600' }}>
+                          ✅ Paid {d.paidDate ? `(${d.paidDate})` : ''}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '0.78rem', color: '#ef5350', fontWeight: '600' }}>
+                          ❌ Unpaid — Rs. 1,000
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* ─────────────────────────────── */}
+
+              {/* Signature */}
               <div style={{ borderTop: '2px solid var(--green-main)', marginBottom: '1.2rem', paddingTop: '1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
                   <div style={{ textAlign: 'center' }}>
@@ -358,6 +563,7 @@ export default function FeesPage({ params }: { params: Promise<{ id: string }> }
                   fontWeight: '600', fontSize: '0.88rem',
                 }}>✕ Close</button>
               </div>
+
             </div>
           </div>
         )}
