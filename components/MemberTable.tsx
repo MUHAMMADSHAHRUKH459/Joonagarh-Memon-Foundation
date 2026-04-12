@@ -6,14 +6,14 @@ interface Member {
   id: string;
   name: string;
   age: number;
-  cnic: string;
-  b_form: string;
-  phone: string;
+  cnic: string | null;
+  b_form: string | null;
+  phone: string | null;
   member_cast: string;
   father_name: string;
   marital_status: string;
   voting_eligible: boolean;
-  occupation: string;
+  occupation: string | null;
   category: string;
   entry_date: string;
   is_child: boolean;
@@ -42,7 +42,7 @@ const MemberTable = ({ members }: MemberTableProps) => {
       }}>
         <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>👥</div>
         <h3>No Members Found</h3>
-        <p style={{ fontSize: '0.9rem', marginTop: '0.5rem' }}>Click "Add Member" button above to add a new member</p>
+        <p style={{ fontSize: '0.9rem', marginTop: '0.5rem' }}>Click &quot;Add Member&quot; button above to add a new member</p>
       </div>
     );
   }
@@ -62,7 +62,8 @@ const MemberTable = ({ members }: MemberTableProps) => {
         justifyContent: 'space-between',
         alignItems: 'center',
       }}>
-        <h3 style={{ fontSize: '1.1rem' }}>👥 All Members ({filteredMembers.length})</h3>      </div>
+        <h3 style={{ fontSize: '1.1rem' }}>👥 All Members ({filteredMembers.length})</h3>
+      </div>
 
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -97,7 +98,7 @@ const MemberTable = ({ members }: MemberTableProps) => {
                 <td style={{ padding: '12px 16px', fontSize: '0.85rem' }}>{member.member_cast}</td>
                 <td style={{ padding: '12px 16px', fontSize: '0.9rem' }}>{member.age}</td>
                 <td style={{ padding: '12px 16px', fontSize: '0.85rem', color: 'var(--gray-text)' }}>{member.cnic || member.b_form || '-'}</td>
-                <td style={{ padding: '12px 16px', fontSize: '0.85rem' }}>{member.phone}</td>
+                <td style={{ padding: '12px 16px', fontSize: '0.85rem' }}>{member.phone || '-'}</td>
                 <td style={{ padding: '12px 16px' }}>
                   <span style={{
                     padding: '4px 10px',

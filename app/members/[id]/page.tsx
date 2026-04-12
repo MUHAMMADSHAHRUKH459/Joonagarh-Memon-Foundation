@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabaseClient';
 // ✅ Proper types replacing `any`
 interface Child {
   name: string;
-  age: string | number;
+  dob: string;
   gender: string;
   bForm?: string;
 }
@@ -33,6 +33,7 @@ interface Member {
   marital_status: string;
   wife_name?: string;
   wife_cnic?: string;
+  wife_dob?: string;
   children?: Child[];
   photo_url?: string;
   is_child?: boolean;
@@ -221,7 +222,7 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
         /* ===== MARRIED SECTION ===== */
         .married-grid {
           display: grid;
-          grid-template-columns: 1fr 1fr;
+          grid-template-columns: 1fr 1fr 1fr;
           gap: 0.75rem;
         }
         .married-card {
@@ -309,7 +310,7 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
             padding: 1rem;
           }
           .married-grid {
-            grid-template-columns: 1fr;
+            grid-template-columns: 1fr 1fr;
           }
           .children-grid {
             grid-template-columns: 1fr 1fr;
@@ -317,6 +318,9 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
         }
 
         @media (max-width: 480px) {
+          .married-grid {
+            grid-template-columns: 1fr;
+          }
           .profile-buttons {
             flex-direction: column;
           }
@@ -468,7 +472,7 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
               <div className="profile-info-section" style={{ borderTop: '1px solid var(--green-pale)' }}>
                 <h3 className="section-title">💍 Marital Information</h3>
 
-                {/* Status badge row */}
+                {/* Status badge */}
                 <div style={{ marginBottom: '0.75rem' }}>
                   <span style={{
                     display: 'inline-block',
@@ -483,6 +487,7 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
                   </span>
                 </div>
 
+                {/* ✅ Wife cards — Name, CNIC, DOB (3 columns) */}
                 {member.marital_status === 'Married' && (
                   <div className="married-grid">
                     <div className="married-card">
@@ -492,6 +497,10 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
                     <div className="married-card">
                       <div className="married-card-label">🪪 Wife&apos;s CNIC</div>
                       <div className="married-card-value">{member.wife_cnic || '-'}</div>
+                    </div>
+                    <div className="married-card">
+                      <div className="married-card-label">🎂 Wife&apos;s Date of Birth</div>
+                      <div className="married-card-value">{member.wife_dob || '-'}</div>
                     </div>
                   </div>
                 )}
@@ -508,7 +517,8 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
                       <p className="child-name">
                         {child.gender === 'Female' ? '👧' : '👦'} {child.name}
                       </p>
-                      <p className="child-detail">Age: {child.age}</p>
+                      {/* ✅ DOB instead of Age */}
+                      <p className="child-detail">DOB: {child.dob || '-'}</p>
                       <p className="child-detail">Gender: {child.gender}</p>
                       {child.bForm && <p className="child-detail">B-Form: {child.bForm}</p>}
                     </div>

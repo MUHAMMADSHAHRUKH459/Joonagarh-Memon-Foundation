@@ -1,36 +1,97 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import SearchBar from '@/components/SearchBar';
 import MemberForm from '@/components/MemberForm';
-import MemberTable from '@/components/MemberTable';
 import { supabase } from '@/lib/supabaseClient';
 import { calculateAge, getCategory, isVotingEligible, formatDate } from '@/utils/helpers';
 
+interface ChildData {
+  name: string;
+  dob: string;
+  gender: string;
+  bForm?: string;
+}
+
+interface MemberFormData {
+  name: string;
+  fatherName: string;
+  cast: string;
+  dateOfBirth: string;
+  gender: string;
+  cnic?: string;
+  bForm?: string;
+  phone: string;
+  email?: string;
+  address?: string;
+  occupation?: string;
+  maritalStatus: string;
+  wifeName?: string;
+  wifeCnic?: string;
+  wifeDob?: string;
+  children: ChildData[];
+}
+
+interface MemberRow {
+  id: string;
+  name: string;
+  father_name: string;
+  member_cast: string;
+  date_of_birth: string;
+  age: number;
+  gender: string;
+  cnic: string | null;
+  b_form: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  occupation: string | null;
+  marital_status: string;
+  wife_name: string | null;
+  wife_cnic: string | null;
+  wife_dob: string | null;
+  children: ChildData[];
+  category: string;
+  voting_eligible: boolean;
+  entry_date: string;
+  fees_paid: Record<string, unknown>;
+  is_child: boolean;
+  created_at: string;
+}
+
+const getAgeFromDob = (dob: string): number => {
+  if (!dob) return 0;
+  const today = new Date();
+  const birth = new Date(dob);
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age;
+};
+
 export default function Home() {
   const router = useRouter();
-  const [members, setMembers] = useState<any[]>([]);
+  const [members, setMembers] = useState<MemberRow[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [notifications, setNotifications] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const fetchMembers = async () => {
+  const fetchMembers = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase.from('members').select('*').order('created_at', { ascending: false });
     if (error) {
       console.error('Error fetching members:', error);
     } else {
       const newNotifications: string[] = [];
-      const updated = await Promise.all((data || []).map(async (member) => {
+      const updated = await Promise.all((data || []).map(async (member: MemberRow) => {
         const age = calculateAge(member.date_of_birth);
         const newCategory = getCategory(age);
         const dob = new Date(member.date_of_birth);
         const today = new Date();
-        const isBirthdayToday =
-          dob.getDate() === today.getDate() && dob.getMonth() === today.getMonth();
+        const isBirthdayToday = dob.getDate() === today.getDate() && dob.getMonth() === today.getMonth();
 
         if (newCategory !== member.category) {
           await supabase.from('members').update({
@@ -41,31 +102,25 @@ export default function Home() {
 
           if (isBirthdayToday && age === 18) {
             await supabase.from('notifications').insert([{
-              message: `🎉 ${member.name} (${member.id}) is now 18 years old - moved to Adult category!`,
+              message: `🎉 ${member.name} (${member.id}) is now 18 - moved to Adult category!`,
               type: 'adult',
             }]);
             newNotifications.push(`🎉 ${member.name} is now 18 - moved to Adult category!`);
           }
           if (isBirthdayToday && age === 60) {
             await supabase.from('notifications').insert([{
-              message: `🏅 ${member.name} (${member.id}) is now 60 years old - moved to Senior Citizen category!`,
+              message: `🏅 ${member.name} (${member.id}) is now 60 - moved to Senior Citizen!`,
               type: 'senior',
             }]);
-            newNotifications.push(`🏅 ${member.name} is now 60 - moved to Senior Citizen category!`);
+            newNotifications.push(`🏅 ${member.name} is now 60 - moved to Senior Citizen!`);
           }
         }
 
-        // Birthday notification
         if (isBirthdayToday) {
           const todayStr = today.toISOString().split('T')[0];
           const { data: existingNotif } = await supabase
-            .from('notifications')
-            .select('id')
-            .eq('type', 'birthday')
-            .like('message', `%${member.id}%`)
-            .gte('created_at', todayStr)
-            .single();
-
+            .from('notifications').select('id').eq('type', 'birthday')
+            .like('message', `%${member.id}%`).gte('created_at', todayStr).single();
           if (!existingNotif) {
             await supabase.from('notifications').insert([{
               message: `🎂 Happy Birthday! ${member.name} (${member.id}) is turning ${age} today!`,
@@ -75,31 +130,29 @@ export default function Home() {
           }
         }
 
-        return { ...member, age, category: newCategory, votingEligible: isVotingEligible(age) };
+        return { ...member, age, category: newCategory, voting_eligible: isVotingEligible(age) };
       }));
       setMembers(updated);
       if (newNotifications.length > 0) setNotifications(newNotifications);
     }
     setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchMembers();
   }, []);
 
-  const handleAddMember = async (member: any) => {
+  useEffect(() => {
+    let isMounted = true;
+    const load = async () => { if (isMounted) await fetchMembers(); };
+    load();
+    return () => { isMounted = false; };
+  }, [fetchMembers]);
+
+  const handleAddMember = async (member: MemberFormData) => {
     const age = calculateAge(member.dateOfBirth);
     const category = getCategory(age);
 
-    // Get last member ID from database
-    const { data: allMembers } = await supabase
-      .from('members')
-      .select('id');
-
+    const { data: allMembers } = await supabase.from('members').select('id');
     const lastNum = allMembers && allMembers.length > 0
-      ? Math.max(...allMembers.map((m: any) => parseInt(m.id.replace('MEM-', '')) || 0))
+      ? Math.max(...allMembers.map((m: { id: string }) => parseInt(m.id.replace('MEM-', '')) || 0))
       : 0;
-
     const newId = `MEM-${String(lastNum + 1).padStart(3, '0')}`;
 
     const newMember = {
@@ -119,6 +172,7 @@ export default function Home() {
       marital_status: member.maritalStatus,
       wife_name: member.wifeName || null,
       wife_cnic: member.wifeCnic || null,
+      wife_dob: member.wifeDob || null,
       children: member.children || [],
       category,
       voting_eligible: isVotingEligible(age),
@@ -127,57 +181,34 @@ export default function Home() {
     };
 
     const { error } = await supabase.from('members').insert([newMember]);
-    if (error) {
-      console.error('Error adding member:', error);
-      alert('Error adding member. Please try again.');
-      return;
-    }
+    if (error) { alert('Error adding member. Please try again.'); return; }
 
     await supabase.from('notifications').insert([{
       message: `👤 New member added: ${newMember.name} (${newMember.id}) - Category: ${category}`,
       type: 'new_member',
     }]);
 
-    // Auto add children as Under 18 members
     if (member.maritalStatus === 'Married' && member.children && member.children.length > 0) {
-      const childrenUnder18 = member.children.filter((c: any) => {
-  const childAge = parseInt(c.age);
-  return !isNaN(childAge) && childAge < 18;
-});
+      const childrenUnder18 = member.children.filter((c: ChildData) => {
+        const childAge = getAgeFromDob(c.dob);
+        return c.dob !== '' && childAge < 18;
+      });
 
-// console.log('Children under 18:', childrenUnder18);
       for (let i = 0; i < childrenUnder18.length; i++) {
         const child = childrenUnder18[i];
-        const childNum = lastNum + 2 + i;
-        const childId = `MEM-${String(childNum).padStart(3, '0')}`;
-
-        const dobYear = new Date().getFullYear() - parseInt(child.age);
-        const childDob = `${dobYear}-06-15`;
+        const childId = `MEM-${String(lastNum + 2 + i).padStart(3, '0')}`;
+        const childAge = getAgeFromDob(child.dob);
 
         const childMember = {
-            id: childId,
-            name: child.name,
-            father_name: member.name,
-            member_cast: member.cast,
-            date_of_birth: childDob,
-            age: parseInt(child.age),
-            gender: child.gender,
-            cnic: null,
-            b_form: child.bForm || null,
-            phone: null,
-            email: null,
-            address: member.address || null,
-            occupation: null,
-            marital_status: 'Unmarried',
-            wife_name: null,
-            wife_cnic: null,
-            children: [],
-            category: 'under18',
-            voting_eligible: false,
-            entry_date: formatDate(new Date()),
-            fees_paid: {},
-            is_child: true,
-          };
+          id: childId, name: child.name, father_name: member.name,
+          member_cast: member.cast, date_of_birth: child.dob, age: childAge,
+          gender: child.gender, cnic: null, b_form: child.bForm || null,
+          phone: null, email: null, address: member.address || null,
+          occupation: null, marital_status: 'Unmarried',
+          wife_name: null, wife_cnic: null, wife_dob: null, children: [],
+          category: 'under18', voting_eligible: false,
+          entry_date: formatDate(new Date()), fees_paid: {}, is_child: true,
+        };
 
         const { error: childError } = await supabase.from('members').insert([childMember]);
         if (!childError) {
@@ -185,8 +216,6 @@ export default function Home() {
             message: `👦 Child auto-added: ${child.name} (${childId}) - Father: ${member.name}`,
             type: 'new_member',
           }]);
-        } else {
-          console.error('Child insert error:', childError);
         }
       }
     }
@@ -195,207 +224,286 @@ export default function Home() {
     setShowForm(false);
   };
 
-  const under18 = members.filter((m) => m.category === 'under18');
-  const adults = members.filter((m) => m.category === 'adult');
-  const seniors = members.filter((m) => m.category === 'senior');
-  const voters = members.filter((m) => m.voting_eligible);
-  const jamatMembers = members.filter((m) => m.marital_status === 'Married');
+  // Stats
+  const visibleMembers = members.filter(m => !m.is_child);
+  const under18Direct = members.filter(m => m.category === 'under18');
+  const familyChildrenUnder18 = members
+    .filter(m => !m.is_child && m.children && m.children.length > 0)
+    .flatMap(m => m.children)
+    .filter((c: ChildData) => c.dob !== '' && getAgeFromDob(c.dob) < 18);
+  const existingChildNames = new Set(members.filter(m => m.is_child).map(m => m.name.toLowerCase()));
+  const unregisteredChildren = familyChildrenUnder18.filter(c => !existingChildNames.has(c.name.toLowerCase()));
+  const under18Count = under18Direct.length + unregisteredChildren.length;
+
+  const adults = members.filter(m => m.category === 'adult');
+  const seniors = members.filter(m => m.category === 'senior');
+  const voters = members.filter(m => m.voting_eligible);
+  const jamatMembers = members.filter(m => m.marital_status === 'Married' && !m.is_child);
+  const totalVisible = visibleMembers.length;
+
+  const filteredMembers = visibleMembers.filter(m =>
+    searchQuery
+      ? m.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (m.cnic?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
+      : true
+  );
 
   return (
     <main>
       <Navbar />
 
       <style>{`
-        .category-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 1.5rem;
-          margin-bottom: 2rem;
+        .dash-wrap { padding: 2rem; max-width: 1300px; margin: 0 auto; }
+
+        /* stats */
+        .stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 1.5rem; }
+        .stat-card { background: var(--green-pale); border-radius: var(--radius); padding: 1rem; }
+        .stat-label { font-size: 0.75rem; color: var(--gray-text); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+        .stat-value { font-size: 1.8rem; font-weight: 700; color: var(--text-dark); line-height: 1; }
+        .stat-badge { display: inline-block; font-size: 0.7rem; padding: 2px 8px; border-radius: 20px; margin-top: 6px; font-weight: 600; }
+
+        /* category cards */
+        .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 1.2rem; }
+        .cat-card { background: var(--white); border: 1px solid var(--green-border); border-radius: var(--radius); padding: 1.1rem 1.25rem; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; }
+        .cat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+        .cat-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .cat-icon { width: 36px; height: 36px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+        .cat-count { font-size: 2rem; font-weight: 700; color: var(--text-dark); }
+        .cat-label { font-size: 0.88rem; font-weight: 600; color: var(--text-dark); }
+        .cat-sub { font-size: 0.75rem; color: var(--gray-text); margin-top: 2px; }
+        .cat-bar { height: 3px; border-radius: 2px; margin-top: 12px; background: var(--green-border); }
+        .cat-bar-fill { height: 100%; border-radius: 2px; }
+        .cat-link { font-size: 0.72rem; color: var(--green-main); margin-top: 8px; font-weight: 600; }
+
+        /* quick row */
+        .quick-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1.5rem; }
+        .quick-card { background: var(--white); border: 1px solid var(--green-border); border-radius: var(--radius); padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: transform 0.15s; }
+        .quick-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+        .quick-left { display: flex; align-items: center; gap: 12px; }
+        .quick-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .quick-title { font-size: 0.9rem; font-weight: 600; color: var(--text-dark); }
+        .quick-sub { font-size: 0.75rem; color: var(--gray-text); margin-top: 2px; }
+        .quick-num { font-size: 1.6rem; font-weight: 700; }
+
+        /* table */
+        .table-card { background: var(--white); border: 1px solid var(--green-border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+        .table-head { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid var(--green-border); }
+        .table-title { font-size: 0.95rem; font-weight: 700; color: var(--text-dark); }
+        .tbl-count { font-size: 0.78rem; color: var(--gray-text); margin-left: 6px; }
+        table { width: 100%; border-collapse: collapse; }
+        thead tr { background: var(--green-pale); }
+        th { padding: 10px 14px; text-align: left; font-size: 0.72rem; font-weight: 700; color: var(--green-dark); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
+        td { padding: 11px 14px; font-size: 0.85rem; color: var(--text-dark); border-bottom: 1px solid var(--green-pale); }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: var(--green-pale); }
+        .member-name { font-weight: 600; font-size: 0.9rem; }
+        .member-id { font-size: 0.72rem; color: var(--gray-text); margin-top: 1px; }
+        .pill { display: inline-flex; align-items: center; gap: 3px; font-size: 0.72rem; font-weight: 600; padding: 3px 9px; border-radius: 20px; }
+        .pill-blue { background: #e3f2fd; color: #1565c0; }
+        .pill-green { background: var(--green-pale); color: var(--green-dark); }
+        .pill-amber { background: #fff3e0; color: #e65100; }
+        .pill-ok { background: #e8f5e9; color: #2e7d32; }
+        .pill-no { background: #fce4e4; color: #c62828; }
+        .view-btn { font-size: 0.78rem; color: var(--green-dark); background: var(--green-pale); border: 1px solid var(--green-border); border-radius: 8px; padding: 5px 12px; cursor: pointer; font-weight: 600; white-space: nowrap; }
+        .view-btn:hover { background: var(--green-border); }
+
+        /* top bar */
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+        .page-title { font-size: 1.4rem; font-weight: 700; color: var(--text-dark); }
+        .page-sub { font-size: 0.78rem; color: var(--gray-text); margin-top: 2px; }
+        .add-btn { background: var(--green-main); color: white; border: none; padding: 10px 20px; border-radius: var(--radius); font-size: 0.9rem; cursor: pointer; font-weight: 600; }
+        .add-btn:hover { opacity: 0.9; }
+
+        /* notification */
+        .notif-bar { background: #fff3e0; border: 1px solid #ffb74d; border-radius: var(--radius); padding: 0.85rem 1.25rem; margin-bottom: 1.5rem; }
+
+        /* loading skeleton */
+        .skeleton { background: linear-gradient(90deg, var(--green-pale) 25%, var(--green-border) 50%, var(--green-pale) 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: var(--radius); height: 20px; }
+        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+        /* empty state */
+        .empty-state { text-align: center; padding: 3rem; color: var(--gray-text); }
+
+        @media (max-width: 1024px) {
+          .stats-grid { grid-template-columns: repeat(3, 1fr); }
         }
         @media (max-width: 768px) {
-          .category-grid {
-            grid-template-columns: 1fr !important;
-            gap: 1rem;
-          }
-          .page-padding {
-            padding: 1rem !important;
-          }
-          .top-bar {
-            flex-direction: column !important;
-            align-items: flex-start !important;
-          }
-          .add-btn {
-            width: 100%;
-          }
-          .voter-box, .jamat-box {
-            flex-direction: column !important;
-            gap: 0.5rem !important;
-          }
+          .dash-wrap { padding: 1rem; }
+          .stats-grid { grid-template-columns: 1fr 1fr; }
+          .cat-grid { grid-template-columns: 1fr; }
+          .quick-row { grid-template-columns: 1fr; }
+          .top-bar { flex-direction: column; align-items: flex-start; }
+          .add-btn { width: 100%; text-align: center; }
+        }
+        @media (max-width: 480px) {
+          .stats-grid { grid-template-columns: 1fr; }
         }
       `}</style>
 
-      <div className="page-padding" style={{ padding: '2rem', maxWidth: '1300px', margin: '0 auto' }}>
+      <div className="dash-wrap">
 
         {/* Notifications */}
         {notifications.length > 0 && (
-          <div style={{
-            backgroundColor: '#fff3e0',
-            border: '1px solid #ffb74d',
-            borderRadius: 'var(--radius)',
-            padding: '1rem 1.5rem',
-            marginBottom: '1.5rem',
-          }}>
-            <h4 style={{ color: '#e65100', marginBottom: '0.5rem' }}>🔔 Today's Updates</h4>
+          <div className="notif-bar">
+            <p style={{ fontSize: '0.82rem', fontWeight: '700', color: '#e65100', marginBottom: '4px' }}>🔔 Today&apos;s Updates</p>
             {notifications.map((n, i) => (
-              <p key={i} style={{ fontSize: '0.9rem', color: '#e65100' }}>{n}</p>
+              <p key={i} style={{ fontSize: '0.82rem', color: '#e65100' }}>{n}</p>
             ))}
           </div>
         )}
 
         {/* Top Bar */}
-        <div className="top-bar" style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '1.5rem',
-          flexWrap: 'wrap',
-          gap: '1rem',
-        }}>
-          <h2 style={{ fontSize: '1.5rem' }}>Members Directory</h2>
-          <button
-            className="add-btn"
-            onClick={() => setShowForm(true)}
-            style={{
-              backgroundColor: 'var(--green-main)',
-              color: 'var(--white)',
-              border: 'none',
-              padding: '10px 24px',
-              borderRadius: 'var(--radius)',
-              fontSize: '1rem',
-              cursor: 'pointer',
-              fontWeight: '600',
-            }}
-          >
-            + Add Member
-          </button>
+        <div className="top-bar">
+          <div>
+            <div className="page-title">Members Directory</div>
+            <div className="page-sub">Naliya Mandwi Junagadh Muslim Welfare Jamat</div>
+          </div>
+          <button className="add-btn" onClick={() => setShowForm(true)}>+ Add Member</button>
         </div>
 
         {/* Search */}
         <SearchBar onSearch={(q) => setSearchQuery(q)} />
 
-        {/* 3 Category Boxes */}
-        <div className="category-grid">
+        {/* Stats Row */}
+        <div className="stats-grid">
           {[
-            { emoji: '👦', label: 'Under 18', count: under18.length, color: '#2196f3', textColor: '#1565c0', path: '/category/under18', sub: 'Not eligible to vote' },
-            { emoji: '🧑', label: 'Adults (18+)', count: adults.length, color: 'var(--green-main)', textColor: 'var(--green-dark)', path: '/category/adult', sub: 'Eligible to vote' },
-            { emoji: '👴', label: 'Senior Citizens', count: seniors.length, color: '#ff9800', textColor: '#e65100', path: '/category/senior', sub: '60+ years' },
-          ].map((cat) => (
-            <div
-              key={cat.path}
-              onClick={() => router.push(cat.path)}
-              onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-4px)')}
-              onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}
-              style={{
-                backgroundColor: 'var(--white)',
-                borderRadius: 'var(--radius)',
-                boxShadow: 'var(--shadow)',
-                padding: '1.5rem',
-                borderTop: `4px solid ${cat.color}`,
-                textAlign: 'center',
-                cursor: 'pointer',
-                transition: 'transform 0.2s',
-              }}
-            >
-              <div style={{ fontSize: '2rem' }}>{cat.emoji}</div>
-              <h3 style={{ color: cat.textColor, margin: '0.5rem 0' }}>{cat.label}</h3>
-              <p style={{ fontSize: '2rem', fontWeight: '700', color: cat.textColor }}>{cat.count}</p>
-              <p style={{ fontSize: '0.85rem', color: 'var(--gray-text)' }}>{cat.sub}</p>
-              <p style={{ fontSize: '0.78rem', color: cat.textColor, marginTop: '0.5rem' }}>Click to view →</p>
+            { label: 'Total Members', value: totalVisible, badge: 'Active', badgeBg: '#e8f5e9', badgeColor: '#2e7d32' },
+            { label: 'Eligible Voters', value: voters.length, badge: `${totalVisible > 0 ? Math.round((voters.length / totalVisible) * 100) : 0}%`, badgeBg: '#e3f2fd', badgeColor: '#1565c0' },
+            { label: 'Jamat Members', value: jamatMembers.length, badge: 'Married', badgeBg: '#ede7f6', badgeColor: '#4527a0' },
+            { label: 'Senior Citizens', value: seniors.length, badge: '60+ yrs', badgeBg: '#fff3e0', badgeColor: '#e65100' },
+            { label: 'Under 18', value: under18Count, badge: 'Minors', badgeBg: '#fce4e4', badgeColor: '#c62828' },
+          ].map((s) => (
+            <div key={s.label} className="stat-card">
+              <div className="stat-label">{s.label}</div>
+              <div className="stat-value">{s.value}</div>
+              <span className="stat-badge" style={{ background: s.badgeBg, color: s.badgeColor }}>{s.badge}</span>
             </div>
           ))}
         </div>
 
-        {/* Jamat Members Box */}
-        <div
-          className="jamat-box"
-          onClick={() => router.push('/category/jamat')}
-          onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-2px)')}
-          onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}
-          style={{
-            backgroundColor: 'var(--white)',
-            borderRadius: 'var(--radius)',
-            boxShadow: 'var(--shadow)',
-            padding: '1rem 1.5rem',
-            marginBottom: '1.5rem',
-            borderLeft: '4px solid #6a1b9a',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            cursor: 'pointer',
-            transition: 'transform 0.2s',
-          }}
-        >
-          <div>
-            <h3 style={{ fontSize: '1rem', color: '#6a1b9a' }}>👨‍👩‍👧‍👦 Jamat Members</h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--gray-text)' }}>Married members — Click to view all</p>
-          </div>
-          <p style={{ fontSize: '2rem', fontWeight: '700', color: '#6a1b9a' }}>{jamatMembers.length}</p>
+        {/* Category Cards */}
+        <div className="cat-grid">
+          {[
+            { label: 'Under 18', sub: 'Not eligible to vote', count: under18Count, total: totalVisible, color: '#2196f3', bgIcon: '#e3f2fd', icon: '👦', path: '/category/under18', barColor: '#2196f3' },
+            { label: 'Adults (18+)', sub: 'Eligible to vote', count: adults.length, total: totalVisible, color: 'var(--green-main)', bgIcon: 'var(--green-pale)', icon: '🧑', path: '/category/adult', barColor: '#1D9E75' },
+            { label: 'Senior Citizens', sub: '60+ years', count: seniors.length, total: totalVisible, color: '#ff9800', bgIcon: '#fff3e0', icon: '👴', path: '/category/senior', barColor: '#ff9800' },
+          ].map((cat) => (
+            <div key={cat.path} className="cat-card" onClick={() => router.push(cat.path)}>
+              <div className="cat-top">
+                <div>
+                  <div className="cat-label">{cat.label}</div>
+                  <div className="cat-sub">{cat.sub}</div>
+                </div>
+                <div className="cat-icon" style={{ background: cat.bgIcon }}>{cat.icon}</div>
+              </div>
+              <div className="cat-count" style={{ color: cat.color }}>{cat.count}</div>
+              <div className="cat-bar">
+                <div className="cat-bar-fill" style={{ width: `${cat.total > 0 ? Math.round((cat.count / cat.total) * 100) : 0}%`, background: cat.barColor }} />
+              </div>
+              <div className="cat-link">Click to view →</div>
+            </div>
+          ))}
         </div>
 
-        {/* Voter List Box */}
-        <div
-          className="voter-box"
-          onClick={() => router.push('/voters')}
-          onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-2px)')}
-          onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}
-          style={{
-            backgroundColor: 'var(--white)',
-            borderRadius: 'var(--radius)',
-            boxShadow: 'var(--shadow)',
-            padding: '1rem 1.5rem',
-            marginBottom: '2rem',
-            borderLeft: '4px solid var(--green-main)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            cursor: 'pointer',
-            transition: 'transform 0.2s',
-          }}
-        >
-          <div>
-            <h3 style={{ fontSize: '1rem' }}>🗳️ Voter List</h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--gray-text)' }}>Total eligible voters — Click to view all</p>
+        {/* Quick Links */}
+        <div className="quick-row">
+          <div className="quick-card" onClick={() => router.push('/category/jamat')}>
+            <div className="quick-left">
+              <div className="quick-dot" style={{ background: '#6a1b9a' }} />
+              <div>
+                <div className="quick-title">👨‍👩‍👧‍👦 Jamat Members</div>
+                <div className="quick-sub">Married members — Click to view all</div>
+              </div>
+            </div>
+            <div className="quick-num" style={{ color: '#6a1b9a' }}>{jamatMembers.length}</div>
           </div>
-          <p style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--green-main)' }}>{voters.length}</p>
+          <div className="quick-card" onClick={() => router.push('/voters')}>
+            <div className="quick-left">
+              <div className="quick-dot" style={{ background: 'var(--green-main)' }} />
+              <div>
+                <div className="quick-title">🗳️ Voter List</div>
+                <div className="quick-sub">Total eligible voters — Click to view all</div>
+              </div>
+            </div>
+            <div className="quick-num" style={{ color: 'var(--green-main)' }}>{voters.length}</div>
+          </div>
         </div>
-
-        {/* Loading */}
-        {loading && (
-          <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--gray-text)' }}>
-            Loading members...
-          </div>
-        )}
 
         {/* Member Form */}
         {showForm && (
-          <MemberForm
-            onSubmit={handleAddMember}
-            onCancel={() => setShowForm(false)}
-          />
+          <MemberForm onSubmit={handleAddMember} onCancel={() => setShowForm(false)} />
         )}
 
-        {/* All Members Table */}
-        {!loading && (
-          <MemberTable
-            members={members.filter((m) =>
-              searchQuery
-                ? m.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                  m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                  m.cnic?.toLowerCase().includes(searchQuery.toLowerCase())
-                : true
-            )}
-          />
-        )}
+        {/* Members Table */}
+        <div className="table-card">
+          <div className="table-head">
+            <div>
+              <span className="table-title">All Members</span>
+              <span className="tbl-count">({filteredMembers.length})</span>
+            </div>
+          </div>
+
+          {loading ? (
+            <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {[1, 2, 3].map(i => <div key={i} className="skeleton" />)}
+            </div>
+          ) : filteredMembers.length === 0 ? (
+            <div className="empty-state">
+              <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>👥</div>
+              <p style={{ fontWeight: '600' }}>No members found</p>
+              <p style={{ fontSize: '0.82rem', marginTop: '4px' }}>Click &quot;+ Add Member&quot; to get started</p>
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Member</th>
+                    <th>Father / Cast</th>
+                    <th>Age</th>
+                    <th>CNIC / B-Form</th>
+                    <th>Phone</th>
+                    <th>Category</th>
+                    <th>Voting</th>
+                    <th>Entry Date</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredMembers.map((member) => (
+                    <tr key={member.id}>
+                      <td>
+                        <div className="member-name">{member.name}</div>
+                        <div className="member-id">{member.id}</div>
+                      </td>
+                      <td style={{ color: 'var(--gray-text)' }}>{member.father_name} · {member.member_cast}</td>
+                      <td>{member.age}</td>
+                      <td style={{ color: 'var(--gray-text)', fontSize: '0.8rem' }}>{member.cnic || member.b_form || '-'}</td>
+                      <td>{member.phone || '-'}</td>
+                      <td>
+                        <span className={`pill ${member.category === 'under18' ? 'pill-blue' : member.category === 'senior' ? 'pill-amber' : 'pill-green'}`}>
+                          {member.category === 'under18' ? '👦 Under 18' : member.category === 'senior' ? '👴 Senior' : '🧑 Adult'}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`pill ${member.voting_eligible ? 'pill-ok' : 'pill-no'}`}>
+                          {member.voting_eligible ? '✓ Eligible' : '✗ Not Eligible'}
+                        </span>
+                      </td>
+                      <td style={{ color: 'var(--gray-text)' }}>{member.entry_date}</td>
+                      <td>
+                        <button className="view-btn" onClick={() => router.push(`/members/${encodeURIComponent(member.id)}`)}>
+                          View Profile
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
 
       </div>
     </main>

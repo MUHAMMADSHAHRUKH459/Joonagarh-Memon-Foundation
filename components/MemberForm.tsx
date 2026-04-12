@@ -4,12 +4,11 @@ import { useState } from 'react';
 
 interface Child {
   name: string;
-  age: string;
+  dob: string;
   gender: string;
   bForm: string;
 }
 
-// ✅ MemberFormData replaces `any` in onSubmit
 interface MemberFormData {
   name: string;
   fatherName: string;
@@ -25,6 +24,7 @@ interface MemberFormData {
   maritalStatus: string;
   wifeName: string;
   wifeCnic: string;
+  wifeDob: string;
   children: Child[];
 }
 
@@ -53,6 +53,17 @@ const labelStyle = {
   display: 'block',
 };
 
+// Age calculate from DOB (accurate)
+const getAgeFromDob = (dob: string): number => {
+  if (!dob) return 0;
+  const today = new Date();
+  const birth = new Date(dob);
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age;
+};
+
 const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
   const [form, setForm] = useState({
     name: '',
@@ -69,18 +80,12 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
     maritalStatus: 'Unmarried',
     wifeName: '',
     wifeCnic: '',
+    wifeDob: '',
   });
 
   const [children, setChildren] = useState<Child[]>([]);
 
-  const getAge = (dob: string): number => {
-    if (!dob) return 0;
-    const today = new Date();
-    const birth = new Date(dob);
-    return today.getFullYear() - birth.getFullYear();
-  };
-
-  const age = getAge(form.dateOfBirth);
+  const age = getAgeFromDob(form.dateOfBirth);
   const isUnder18 = age < 18 && age > 0;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -88,7 +93,7 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
   };
 
   const addChild = () => {
-    setChildren([...children, { name: '', age: '', gender: 'Male', bForm: '' }]);
+    setChildren([...children, { name: '', dob: '', gender: 'Male', bForm: '' }]);
   };
 
   const updateChild = (index: number, field: keyof Child, value: string) => {
@@ -108,14 +113,8 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
 
   return (
     <div style={{
-      position: 'fixed',
-      inset: 0,
-      backgroundColor: 'rgba(0,0,0,0.4)',
-      zIndex: 200,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '1rem',
+      position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)',
+      zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem',
     }}>
       <style>{`
         .member-form-grid {
@@ -126,78 +125,66 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
         }
         .wife-grid {
           display: grid;
-          grid-template-columns: 1fr 1fr;
+          grid-template-columns: 1fr 1fr 1fr;
           gap: 1rem;
           margin-bottom: 1rem;
         }
-
-        /* Child row — 2x2 grid on mobile */
+        @media (max-width: 768px) {
+          .wife-grid { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 480px) {
+          .wife-grid { grid-template-columns: 1fr; }
+          .member-form-grid { grid-template-columns: 1fr; }
+        }
         .child-row {
+          background: var(--white);
+          border: 1px solid var(--green-border);
+          border-radius: var(--radius);
+          padding: 0.75rem;
+          margin-bottom: 0.75rem;
+        }
+        .child-row-grid {
           display: grid;
           grid-template-columns: 1fr 1fr 1fr 1fr auto;
           gap: 0.5rem;
-          margin-bottom: 0.75rem;
-          align-items: center;
+          align-items: end;
         }
-        .child-remove-btn {
-          background: #ff4444;
-          color: white;
-          border: none;
-          border-radius: 8px;
-          padding: 8px 12px;
-          cursor: pointer;
-          font-size: 0.9rem;
-          white-space: nowrap;
+        .child-age-badge {
+          margin-top: 0.5rem;
         }
-
         @media (max-width: 600px) {
-          .member-form-grid {
-            grid-template-columns: 1fr;
-          }
-          .wife-grid {
-            grid-template-columns: 1fr;
-          }
-          .child-row {
+          .child-row-grid {
             grid-template-columns: 1fr 1fr;
-            grid-template-rows: auto auto auto;
           }
-          .child-row .child-name  { grid-column: 1 / 3; }
-          .child-row .child-age   { grid-column: 1 / 2; }
-          .child-row .child-gender{ grid-column: 2 / 3; }
-          .child-row .child-bform { grid-column: 1 / 2; }
-          .child-row .child-remove{ grid-column: 2 / 3; justify-self: end; align-self: end; }
+          .child-row-grid .child-name   { grid-column: 1 / 3; }
+          .child-row-grid .child-dob    { grid-column: 1 / 3; }
+          .child-row-grid .child-gender { grid-column: 1 / 2; }
+          .child-row-grid .child-bform  { grid-column: 2 / 3; }
+          .child-row-grid .child-remove { grid-column: 1 / 3; justify-self: end; }
         }
       `}</style>
 
       <div style={{
-        backgroundColor: 'var(--white)',
-        borderRadius: 'var(--radius)',
-        padding: '2rem',
-        width: '100%',
-        maxWidth: '700px',
-        maxHeight: '90vh',
-        overflowY: 'auto',
+        backgroundColor: 'var(--white)', borderRadius: 'var(--radius)', padding: '2rem',
+        width: '100%', maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto',
         boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
       }}>
         <h2 style={{ marginBottom: '1.5rem', fontSize: '1.4rem' }}>➕ Add New Member</h2>
 
-        {/* Age Preview */}
+        {/* Member Age Preview */}
         {form.dateOfBirth && (
           <div style={{
             backgroundColor: isUnder18 ? '#e3f2fd' : 'var(--green-pale)',
             border: `1px solid ${isUnder18 ? '#90caf9' : 'var(--green-border)'}`,
-            borderRadius: '8px',
-            padding: '10px 16px',
-            marginBottom: '1rem',
-            fontSize: '0.9rem',
-            fontWeight: '600',
+            borderRadius: '8px', padding: '10px 16px', marginBottom: '1rem',
+            fontSize: '0.9rem', fontWeight: '600',
             color: isUnder18 ? '#1565c0' : 'var(--green-dark)',
           }}>
             {isUnder18
-              ? `👦 Age: ${age} - Under 18 Category (B-Form required)`
+              ? `👦 Age: ${age} — Under 18 Category (B-Form required)`
               : age >= 60
-              ? `👴 Age: ${age} - Senior Citizen Category`
-              : `🧑 Age: ${age} - Adult Category`}
+              ? `👴 Age: ${age} — Senior Citizen Category`
+              : `🧑 Age: ${age} — Adult Category`}
           </div>
         )}
 
@@ -269,10 +256,8 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
 
               {form.maritalStatus === 'Married' && (
                 <div style={{
-                  backgroundColor: 'var(--green-pale)',
-                  padding: '1rem',
-                  borderRadius: 'var(--radius)',
-                  marginBottom: '1rem',
+                  backgroundColor: 'var(--green-pale)', padding: '1rem',
+                  borderRadius: 'var(--radius)', marginBottom: '1rem',
                   border: '1px solid var(--green-border)',
                 }}>
                   <h3 style={{ marginBottom: '1rem', fontSize: '1rem' }}>👨‍👩‍👧 Family Details</h3>
@@ -287,6 +272,10 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
                       <label style={labelStyle}>Wife&apos;s CNIC</label>
                       <input style={inputStyle} name="wifeCnic" value={form.wifeCnic} onChange={handleChange} placeholder="42101-1234567-1" />
                     </div>
+                    <div>
+                      <label style={labelStyle}>Wife&apos;s Date of Birth</label>
+                      <input style={inputStyle} name="wifeDob" type="date" value={form.wifeDob} onChange={handleChange} />
+                    </div>
                   </div>
 
                   {/* Children */}
@@ -294,66 +283,90 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                       <label style={labelStyle}>Children ({children.length})</label>
                       <button type="button" onClick={addChild} style={{
-                        backgroundColor: 'var(--green-main)',
-                        color: 'white',
-                        border: 'none',
-                        padding: '6px 14px',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        fontSize: '0.85rem',
-                        fontWeight: '600',
+                        backgroundColor: 'var(--green-main)', color: 'white', border: 'none',
+                        padding: '6px 14px', borderRadius: '8px', cursor: 'pointer',
+                        fontSize: '0.85rem', fontWeight: '600',
                       }}>+ Add Child</button>
                     </div>
 
-                    {children.map((child, index) => (
-                      <div key={index} className="child-row">
-                        <input
-                          className="child-name"
-                          style={inputStyle}
-                          placeholder="Child's name"
-                          value={child.name}
-                          onChange={(e) => updateChild(index, 'name', e.target.value)}
-                        />
-                        <input
-                          className="child-age"
-                          style={inputStyle}
-                          placeholder="Age"
-                          type="number"
-                          value={child.age}
-                          onChange={(e) => updateChild(index, 'age', e.target.value)}
-                        />
-                        <select
-                          className="child-gender"
-                          style={inputStyle}
-                          value={child.gender}
-                          onChange={(e) => updateChild(index, 'gender', e.target.value)}
-                        >
-                          <option>Male</option>
-                          <option>Female</option>
-                        </select>
-                        <input
-                          className="child-bform"
-                          style={inputStyle}
-                          placeholder="B-Form (optional)"
-                          value={child.bForm}
-                          onChange={(e) => updateChild(index, 'bForm', e.target.value)}
-                        />
-                        <button
-                          type="button"
-                          className="child-remove"
-                          onClick={() => removeChild(index)}
-                          style={{
-                            background: '#ff4444',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            padding: '8px 12px',
-                            cursor: 'pointer',
-                            fontSize: '0.9rem',
-                          }}
-                        >✕</button>
-                      </div>
-                    ))}
+                    {children.map((child, index) => {
+                      const childAge = getAgeFromDob(child.dob);
+                      const childIsUnder18 = child.dob !== '' && childAge < 18;
+
+                      return (
+                        <div key={index} className="child-row">
+                          <div className="child-row-grid">
+                            <div className="child-name">
+                              <label style={{ ...labelStyle, fontSize: '0.78rem' }}>Name</label>
+                              <input
+                                style={inputStyle}
+                                placeholder="Child's name"
+                                value={child.name}
+                                onChange={(e) => updateChild(index, 'name', e.target.value)}
+                              />
+                            </div>
+                            <div className="child-dob">
+                              <label style={{ ...labelStyle, fontSize: '0.78rem' }}>Date of Birth</label>
+                              <input
+                                style={inputStyle}
+                                type="date"
+                                value={child.dob}
+                                onChange={(e) => updateChild(index, 'dob', e.target.value)}
+                              />
+                            </div>
+                            <div className="child-gender">
+                              <label style={{ ...labelStyle, fontSize: '0.78rem' }}>Gender</label>
+                              <select
+                                style={inputStyle}
+                                value={child.gender}
+                                onChange={(e) => updateChild(index, 'gender', e.target.value)}
+                              >
+                                <option>Male</option>
+                                <option>Female</option>
+                              </select>
+                            </div>
+                            <div className="child-bform">
+                              <label style={{ ...labelStyle, fontSize: '0.78rem' }}>B-Form</label>
+                              <input
+                                style={inputStyle}
+                                placeholder="Optional"
+                                value={child.bForm}
+                                onChange={(e) => updateChild(index, 'bForm', e.target.value)}
+                              />
+                            </div>
+                            <div className="child-remove" style={{ display: 'flex', alignItems: 'flex-end' }}>
+                              <button
+                                type="button"
+                                onClick={() => removeChild(index)}
+                                style={{
+                                  background: '#ff4444', color: 'white', border: 'none',
+                                  borderRadius: '8px', padding: '10px 12px',
+                                  cursor: 'pointer', fontSize: '0.9rem',
+                                }}
+                              >✕</button>
+                            </div>
+                          </div>
+
+                          {/* ✅ Auto age badge */}
+                          {child.dob && (
+                            <div className="child-age-badge">
+                              <span style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                backgroundColor: childIsUnder18 ? '#e3f2fd' : '#e8f5e9',
+                                color: childIsUnder18 ? '#1565c0' : 'var(--green-dark)',
+                                border: `1px solid ${childIsUnder18 ? '#90caf9' : 'var(--green-border)'}`,
+                                borderRadius: '20px', padding: '3px 10px',
+                                fontSize: '0.78rem', fontWeight: '700',
+                              }}>
+                                {childIsUnder18
+                                  ? `👦 Age: ${childAge} — Under 18 (Child Category)`
+                                  : `🧑 Age: ${childAge} — Adult`}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -363,22 +376,14 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
           {/* Submit Buttons */}
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1rem', flexWrap: 'wrap' }}>
             <button type="button" onClick={onCancel} style={{
-              padding: '10px 24px',
-              border: '1.5px solid var(--green-border)',
-              borderRadius: 'var(--radius)',
-              backgroundColor: 'transparent',
-              cursor: 'pointer',
-              fontSize: '0.95rem',
+              padding: '10px 24px', border: '1.5px solid var(--green-border)',
+              borderRadius: 'var(--radius)', backgroundColor: 'transparent',
+              cursor: 'pointer', fontSize: '0.95rem',
             }}>Cancel</button>
             <button type="submit" style={{
-              padding: '10px 24px',
-              backgroundColor: 'var(--green-main)',
-              color: 'white',
-              border: 'none',
-              borderRadius: 'var(--radius)',
-              cursor: 'pointer',
-              fontSize: '0.95rem',
-              fontWeight: '600',
+              padding: '10px 24px', backgroundColor: 'var(--green-main)',
+              color: 'white', border: 'none', borderRadius: 'var(--radius)',
+              cursor: 'pointer', fontSize: '0.95rem', fontWeight: '600',
             }}>✅ Add Member</button>
           </div>
         </form>
