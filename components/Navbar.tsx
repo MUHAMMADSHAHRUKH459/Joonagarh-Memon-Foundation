@@ -1,12 +1,13 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { signOut } from 'next-auth/react';
 import { supabase } from '@/lib/supabaseClient';
 
 const Navbar = () => {
   const router = useRouter();
+  const pathname = usePathname();
   const [unreadCount, setUnreadCount] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -18,21 +19,20 @@ const Navbar = () => {
         .eq('read', false);
       setUnreadCount(count || 0);
     };
-
     fetchUnread();
     const interval = setInterval(fetchUnread, 30000);
     return () => clearInterval(interval);
   }, []);
 
   const navLinks = [
-    { label: '🏠 Home', path: '/' },
-    { label: '🗳️ Voters', path: '/voters' },
-    { label: '📋 History', path: '/history' },
-    { label: '📊 Reports', path: '/reports' },
-    { label: '📒 Accounts', path: '/accounts' },
-    { label: '📢 Broadcast', path: '/broadcast' },
-    { label: '🕊️ Funeral', path: '/funeral' },
-    { label: '🔔 Alerts', path: '/notifications' },
+    { label: 'Home',          icon: '🏠', path: '/' },
+    { label: 'Voters',        icon: '🗳️', path: '/voters' },
+    { label: 'History',       icon: '📋', path: '/history' },
+    { label: 'Reports',       icon: '📊', path: '/reports' },
+    { label: 'Accounts',      icon: '📒', path: '/accounts' },
+    { label: 'Broadcast',     icon: '📢', path: '/broadcast' },
+    { label: 'Funeral',       icon: '🕊️', path: '/funeral' },
+    { label: 'Alerts',        icon: '🔔', path: '/notifications' },
   ];
 
   const navigate = (path: string) => {
@@ -40,156 +40,283 @@ const Navbar = () => {
     setMenuOpen(false);
   };
 
+  const isActive = (path: string) =>
+    path === '/' ? pathname === '/' : pathname?.startsWith(path);
+
   return (
     <>
-      <nav style={{
-        backgroundColor: 'var(--green-dark)',
-        padding: '0 1.5rem',
-        height: '65px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-      }}>
-        {/* Left - Logo */}
-        <div
-          onClick={() => navigate('/')}
-          style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
-        >
-          <div style={{
-            width: '38px', height: '38px',
-            backgroundColor: 'var(--green-light)',
-            borderRadius: '50%',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '18px', flexShrink: 0,
-          }}>🕌</div>
+      <style>{`
+        .navbar {
+          background-color: var(--green-dark);
+          padding: 0 1.5rem;
+          height: 60px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          position: sticky;
+          top: 0;
+          z-index: 100;
+          border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .nav-logo {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          cursor: pointer;
+          flex-shrink: 0;
+          text-decoration: none;
+        }
+        .nav-logo-icon {
+          width: 34px;
+          height: 34px;
+          background: rgba(255,255,255,0.12);
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 16px;
+          flex-shrink: 0;
+        }
+        .nav-logo-text {
+          color: white;
+          font-size: 0.88rem;
+          font-weight: 700;
+          line-height: 1.2;
+          max-width: 200px;
+        }
+        .nav-logo-sub {
+          color: rgba(255,255,255,0.5);
+          font-size: 0.65rem;
+          font-weight: 400;
+        }
+
+        .desktop-nav {
+          display: flex;
+          align-items: center;
+          gap: 2px;
+        }
+        .nav-link {
+          background: transparent;
+          color: rgba(255,255,255,0.65);
+          border: none;
+          cursor: pointer;
+          font-size: 0.78rem;
+          font-weight: 600;
+          padding: 6px 10px;
+          border-radius: 8px;
+          white-space: nowrap;
+          position: relative;
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          transition: background 0.15s, color 0.15s;
+          letter-spacing: 0.01em;
+        }
+        .nav-link:hover {
+          background: rgba(255,255,255,0.1);
+          color: white;
+        }
+        .nav-link.active {
+          background: rgba(255,255,255,0.15);
+          color: white;
+        }
+        .nav-link .nav-icon {
+          font-size: 13px;
+        }
+        .nav-badge {
+          position: absolute;
+          top: 3px;
+          right: 3px;
+          background: #ef5350;
+          color: white;
+          border-radius: 50%;
+          width: 14px;
+          height: 14px;
+          font-size: 0.52rem;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 1.5px solid var(--green-dark);
+        }
+
+        .nav-divider {
+          width: 1px;
+          height: 20px;
+          background: rgba(255,255,255,0.12);
+          margin: 0 4px;
+        }
+
+        .logout-btn {
+          background: rgba(198, 40, 40, 0.2);
+          color: #ef9a9a;
+          border: 1px solid rgba(198,40,40,0.3);
+          cursor: pointer;
+          font-size: 0.78rem;
+          font-weight: 600;
+          padding: 6px 12px;
+          border-radius: 8px;
+          white-space: nowrap;
+          margin-left: 4px;
+          transition: background 0.15s, color 0.15s;
+          display: flex;
+          align-items: center;
+          gap: 5px;
+        }
+        .logout-btn:hover {
+          background: #c62828;
+          color: white;
+          border-color: #c62828;
+        }
+
+        .hamburger {
+          display: none;
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          color: white;
+          padding: 6px;
+          border-radius: 8px;
+          transition: background 0.15s;
+        }
+        .hamburger:hover { background: rgba(255,255,255,0.1); }
+        .hamburger-icon {
+          width: 20px;
+          height: 14px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+        }
+        .hamburger-icon span {
+          display: block;
+          height: 2px;
+          background: white;
+          border-radius: 2px;
+          transition: all 0.2s;
+        }
+
+        /* Mobile menu */
+        .mobile-menu {
+          display: none;
+          background: var(--green-dark);
+          border-bottom: 1px solid rgba(255,255,255,0.08);
+          padding: 0.75rem 1rem;
+          position: sticky;
+          top: 60px;
+          z-index: 99;
+        }
+        .mobile-menu.open { display: flex; flex-direction: column; gap: 4px; }
+        .mobile-link {
+          background: transparent;
+          color: rgba(255,255,255,0.75);
+          border: none;
+          cursor: pointer;
+          font-size: 0.88rem;
+          font-weight: 600;
+          padding: 10px 14px;
+          border-radius: 8px;
+          text-align: left;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          transition: background 0.15s;
+        }
+        .mobile-link:hover { background: rgba(255,255,255,0.08); color: white; }
+        .mobile-link.active { background: rgba(255,255,255,0.12); color: white; }
+        .mobile-logout {
+          background: rgba(198,40,40,0.15);
+          color: #ef9a9a;
+          border: none;
+          cursor: pointer;
+          font-size: 0.88rem;
+          font-weight: 600;
+          padding: 10px 14px;
+          border-radius: 8px;
+          text-align: left;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-top: 4px;
+          transition: background 0.15s;
+        }
+        .mobile-logout:hover { background: #c62828; color: white; }
+        .mobile-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 4px 0; }
+
+        @media (max-width: 900px) {
+          .desktop-nav { display: none !important; }
+          .hamburger { display: flex !important; }
+          .nav-logo-text { max-width: 140px; font-size: 0.8rem; }
+        }
+        @media (min-width: 901px) {
+          .mobile-menu { display: none !important; }
+        }
+      `}</style>
+
+      <nav className="navbar">
+        {/* Logo */}
+        <div className="nav-logo" onClick={() => navigate('/')}>
+          <div className="nav-logo-icon">🕌</div>
           <div>
-            <h1 style={{ color: 'var(--white)', fontSize: '1rem', lineHeight: 1 }}>Naliya Mandwi Junagadh Muslim Welfare Jamat</h1>
-            <p style={{ color: 'var(--green-border)', fontSize: '0.68rem' }}></p>
+            <div className="nav-logo-text">Naliya Mandwi Junagadh Muslim Welfare Jamat</div>
           </div>
         </div>
 
         {/* Desktop Links */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: '0.25rem',
-        }} className="desktop-nav">
+        <div className="desktop-nav">
           {navLinks.map((link) => (
             <button
               key={link.path}
               onClick={() => navigate(link.path)}
-              style={{
-                backgroundColor: 'transparent',
-                color: 'var(--green-border)',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '0.82rem',
-                fontWeight: '600',
-                padding: '6px 10px',
-                borderRadius: '8px',
-                whiteSpace: 'nowrap',
-                position: 'relative',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)')}
-              onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+              className={`nav-link${isActive(link.path) ? ' active' : ''}`}
             >
+              <span className="nav-icon">{link.icon}</span>
               {link.label}
               {link.path === '/notifications' && unreadCount > 0 && (
-                <span style={{
-                  position: 'absolute', top: '2px', right: '4px',
-                  backgroundColor: '#ef5350', color: 'white',
-                  borderRadius: '50%', width: '14px', height: '14px',
-                  fontSize: '0.55rem', fontWeight: '700',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>{unreadCount}</span>
+                <span className="nav-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
               )}
             </button>
           ))}
 
-          <button
-            onClick={() => signOut({ callbackUrl: '/login' })}
-            style={{
-              backgroundColor: '#c62828', color: 'white', border: 'none',
-              cursor: 'pointer', fontSize: '0.82rem', fontWeight: '600',
-              padding: '6px 14px', borderRadius: '8px', whiteSpace: 'nowrap',
-              marginLeft: '0.5rem',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#b71c1c')}
-            onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#c62828')}
-          >
+          <div className="nav-divider" />
+
+          <button className="logout-btn" onClick={() => signOut({ callbackUrl: '/login' })}>
             🔒 Logout
           </button>
         </div>
 
-        {/* Hamburger - Mobile */}
-        <button
-          onClick={() => setMenuOpen(!menuOpen)}
-          className="hamburger"
-          style={{
-            backgroundColor: 'transparent',
-            border: 'none', cursor: 'pointer',
-            color: 'white', fontSize: '1.5rem',
-            padding: '4px 8px',
-            display: 'none',
-          }}
-        >
-          {menuOpen ? '✕' : '☰'}
+        {/* Hamburger */}
+        <button className="hamburger" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu">
+          <div className="hamburger-icon">
+            <span style={{ width: menuOpen ? '100%' : '100%' }} />
+            <span style={{ opacity: menuOpen ? 0 : 1 }} />
+            <span />
+          </div>
         </button>
       </nav>
 
       {/* Mobile Menu */}
-      {menuOpen && (
-        <div style={{
-          backgroundColor: 'var(--green-dark)',
-          padding: '1rem',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.5rem',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-          position: 'sticky',
-          top: '65px',
-          zIndex: 99,
-        }} className="mobile-menu">
-          {navLinks.map((link) => (
-            <button
-              key={link.path}
-              onClick={() => navigate(link.path)}
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.08)',
-                color: 'white', border: 'none',
-                cursor: 'pointer', fontSize: '0.95rem',
-                fontWeight: '600', padding: '12px 16px',
-                borderRadius: '8px', textAlign: 'left',
-              }}
-            >
-              {link.label}
-              {link.path === '/notifications' && unreadCount > 0 && ` (${unreadCount})`}
-            </button>
-          ))}
+      <div className={`mobile-menu${menuOpen ? ' open' : ''}`}>
+        {navLinks.map((link) => (
           <button
-            onClick={() => signOut({ callbackUrl: '/login' })}
-            style={{
-              backgroundColor: '#c62828', color: 'white', border: 'none',
-              cursor: 'pointer', fontSize: '0.95rem', fontWeight: '600',
-              padding: '12px 16px', borderRadius: '8px', textAlign: 'left',
-            }}
+            key={link.path}
+            onClick={() => navigate(link.path)}
+            className={`mobile-link${isActive(link.path) ? ' active' : ''}`}
           >
-            🔒 Logout
+            <span style={{ fontSize: '16px' }}>{link.icon}</span>
+            {link.label}
+            {link.path === '/notifications' && unreadCount > 0 && (
+              <span style={{
+                marginLeft: 'auto', background: '#ef5350', color: 'white',
+                borderRadius: '20px', padding: '1px 7px', fontSize: '0.65rem', fontWeight: '700',
+              }}>{unreadCount}</span>
+            )}
           </button>
-        </div>
-      )}
-
-      <style>{`
-        @media (max-width: 768px) {
-          .desktop-nav { display: none !important; }
-          .hamburger { display: block !important; }
-        }
-        @media (min-width: 769px) {
-          .mobile-menu { display: none !important; }
-        }
-      `}</style>
+        ))}
+        <div className="mobile-divider" />
+        <button className="mobile-logout" onClick={() => signOut({ callbackUrl: '/login' })}>
+          🔒 Logout
+        </button>
+      </div>
     </>
   );
 };
