@@ -2,15 +2,21 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import Navbar from '@/components/Navbar';
 import { supabase } from '@/lib/supabaseClient';
 
-// ✅ Proper types replacing `any`
 interface Child {
   name: string;
   dob: string;
   gender: string;
   bForm?: string;
+}
+
+interface Wife {
+  name: string;
+  cnic: string;
+  dob: string;
 }
 
 interface Member {
@@ -28,12 +34,18 @@ interface Member {
   address: string;
   occupation: string;
   entry_date: string;
-  category: 'under18' | 'senior' | 'adult';
+  category: 'under18' | 'senior' | 'adult' | 'widow';
   voting_eligible: boolean;
   marital_status: string;
+  // Male fields
+  wives?: Wife[];
   wife_name?: string;
   wife_cnic?: string;
   wife_dob?: string;
+  // Female fields
+  husband_name?: string;
+  husband_cnic?: string;
+  husband_dob?: string;
   children?: Child[];
   photo_url?: string;
   is_child?: boolean;
@@ -155,12 +167,26 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
     </div>
   );
 
+  // ✅ Marital status badge helper
+  const getMaritalBadge = (status: string) => {
+    if (status === 'Married') return { emoji: '💍', label: 'Married', bg: 'var(--green-main)' };
+    if (status === 'Widow')   return { emoji: '🕊️', label: 'Widow',   bg: '#7b1fa2' };
+    return                           { emoji: '🧑', label: 'Unmarried', bg: 'var(--gray-text)' };
+  };
+
+  // ✅ Category badge helper — widow bhi include
+  const getCategoryBadge = (category: string) => {
+    if (category === 'under18') return { emoji: '👦', label: 'Under 18',      bg: '#1565c0' };
+    if (category === 'senior')  return { emoji: '👴', label: 'Senior Citizen', bg: '#e65100' };
+    if (category === 'widow')   return { emoji: '🕊️', label: 'Widow',         bg: '#7b1fa2' };
+    return                             { emoji: '🧑', label: 'Adult',          bg: 'var(--green-main)' };
+  };
+
   return (
     <main>
       <Navbar />
 
       <style>{`
-        /* ===== BUTTONS ===== */
         .profile-buttons {
           display: flex;
           gap: 0.75rem;
@@ -177,15 +203,9 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
           transition: opacity 0.2s;
           white-space: nowrap;
         }
-        .profile-btn:hover {
-          opacity: 0.88;
-        }
-        .profile-btn:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
+        .profile-btn:hover { opacity: 0.88; }
+        .profile-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-        /* ===== HEADER ===== */
         .profile-header {
           display: flex;
           align-items: center;
@@ -193,33 +213,13 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
           padding: 1.5rem;
           background-color: var(--green-dark);
         }
-        .profile-header-text h2 {
-          color: white;
-          font-size: 1.4rem;
-          margin-bottom: 4px;
-        }
-        .profile-header-text p {
-          color: var(--green-border);
-          font-size: 0.85rem;
-          margin-bottom: 0.5rem;
-        }
-        .profile-header-badges {
-          display: flex;
-          gap: 0.5rem;
-          flex-wrap: wrap;
-        }
+        .profile-header-text h2 { color: white; font-size: 1.4rem; margin-bottom: 4px; }
+        .profile-header-text p { color: var(--green-border); font-size: 0.85rem; margin-bottom: 0.5rem; }
+        .profile-header-badges { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 
-        /* ===== SECTIONS ===== */
-        .profile-info-section {
-          padding: 1.2rem 1.5rem;
-        }
-        .section-title {
-          margin-bottom: 0.75rem;
-          font-size: 1rem;
-          color: var(--green-dark);
-        }
+        .profile-info-section { padding: 1.2rem 1.5rem; }
+        .section-title { margin-bottom: 0.75rem; font-size: 1rem; color: var(--green-dark); }
 
-        /* ===== MARRIED SECTION ===== */
         .married-grid {
           display: grid;
           grid-template-columns: 1fr 1fr 1fr;
@@ -246,7 +246,6 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
           word-break: break-word;
         }
 
-        /* ===== CHILDREN GRID ===== */
         .children-grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
@@ -258,277 +257,260 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
           padding: 0.75rem;
           border: 1px solid var(--green-border);
         }
-        .child-card p {
-          margin: 0;
-        }
-        .child-name {
-          font-weight: 600;
-          font-size: 0.9rem;
-          margin-bottom: 4px !important;
-        }
-        .child-detail {
-          font-size: 0.82rem;
-          color: var(--gray-text);
-          margin-top: 2px !important;
-        }
+        .child-card p { margin: 0; }
+        .child-name { font-weight: 600; font-size: 0.9rem; margin-bottom: 4px !important; }
+        .child-detail { font-size: 0.82rem; color: var(--gray-text); margin-top: 2px !important; }
 
-        /* ===== PHOTO ===== */
-        .photo-wrapper {
-          position: relative;
-          flex-shrink: 0;
-        }
+        .photo-wrapper { position: relative; flex-shrink: 0; }
         .photo-circle {
-          width: 85px;
-          height: 85px;
-          border-radius: 50%;
-          overflow: hidden;
-          border: 3px solid var(--green-light);
-          background-color: var(--green-light);
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          width: 85px; height: 85px; border-radius: 50%; overflow: hidden;
+          border: 3px solid var(--green-light); background-color: var(--green-light);
+          display: flex; align-items: center; justify-content: center;
         }
         .photo-upload-btn {
-          position: absolute;
-          bottom: 0;
-          right: 0;
-          background-color: var(--green-main);
-          border-radius: 50%;
-          width: 26px;
-          height: 26px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          font-size: 0.75rem;
-          border: 2px solid white;
+          position: absolute; bottom: 0; right: 0;
+          background-color: var(--green-main); border-radius: 50%;
+          width: 26px; height: 26px;
+          display: flex; align-items: center; justify-content: center;
+          cursor: pointer; font-size: 0.75rem; border: 2px solid white;
         }
 
-        /* ===== RESPONSIVE ===== */
         @media (max-width: 768px) {
-          .profile-info-section {
-            padding: 1rem;
-          }
-          .married-grid {
-            grid-template-columns: 1fr 1fr;
-          }
-          .children-grid {
-            grid-template-columns: 1fr 1fr;
-          }
+          .profile-info-section { padding: 1rem; }
+          .married-grid { grid-template-columns: 1fr 1fr; }
+          .children-grid { grid-template-columns: 1fr 1fr; }
         }
-
         @media (max-width: 480px) {
-          .married-grid {
-            grid-template-columns: 1fr;
-          }
-          .profile-buttons {
-            flex-direction: column;
-          }
-          .profile-btn {
-            width: 100%;
-            text-align: center;
-          }
-          .profile-header {
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-            padding: 1.2rem 1rem;
-            gap: 1rem;
-          }
-          .profile-header-badges {
-            justify-content: center;
-          }
-          .profile-header-text h2 {
-            font-size: 1.2rem;
-          }
-          .children-grid {
-            grid-template-columns: 1fr 1fr;
-          }
-          .photo-circle {
-            width: 75px;
-            height: 75px;
-          }
+          .married-grid { grid-template-columns: 1fr; }
+          .profile-buttons { flex-direction: column; }
+          .profile-btn { width: 100%; text-align: center; }
+          .profile-header { flex-direction: column; align-items: center; text-align: center; padding: 1.2rem 1rem; gap: 1rem; }
+          .profile-header-badges { justify-content: center; }
+          .profile-header-text h2 { font-size: 1.2rem; }
+          .children-grid { grid-template-columns: 1fr 1fr; }
+          .photo-circle { width: 75px; height: 75px; }
         }
-
         @media (max-width: 360px) {
-          .children-grid {
-            grid-template-columns: 1fr;
-          }
+          .children-grid { grid-template-columns: 1fr; }
         }
       `}</style>
 
       <div style={{ padding: '1rem', maxWidth: '900px', margin: '0 auto' }}>
 
-        {/* ===== BUTTONS ===== */}
+        {/* Buttons */}
         <div className="profile-buttons">
-          <button className="profile-btn" onClick={() => router.back()} style={{
-            backgroundColor: 'var(--green-main)', color: 'white',
-          }}>← Back</button>
-
+          <button className="profile-btn" onClick={() => router.back()} style={{ backgroundColor: 'var(--green-main)', color: 'white' }}>
+            ← Back
+          </button>
           {!member?.is_child && (
-            <button className="profile-btn" onClick={() => router.push(`/fees/${encodeURIComponent(id)}`)} style={{
-              backgroundColor: '#1565c0', color: 'white',
-            }}>💰 Manage Fees</button>
+            <button className="profile-btn" onClick={() => router.push(`/fees/${encodeURIComponent(id)}`)} style={{ backgroundColor: '#1565c0', color: 'white' }}>
+              💰 Manage Fees
+            </button>
           )}
-
-          <button className="profile-btn" onClick={() => router.push(`/edit/${encodeURIComponent(id)}`)} style={{
-            backgroundColor: '#e65100', color: 'white',
-          }}>✏️ Edit Member</button>
-
-          <button
-            className="profile-btn"
-            onClick={handleDelete}
-            disabled={deleting}
-            style={{ backgroundColor: '#c62828', color: 'white' }}>
+          <button className="profile-btn" onClick={() => router.push(`/edit/${encodeURIComponent(id)}`)} style={{ backgroundColor: '#e65100', color: 'white' }}>
+            ✏️ Edit Member
+          </button>
+          <button className="profile-btn" onClick={handleDelete} disabled={deleting} style={{ backgroundColor: '#c62828', color: 'white' }}>
             {deleting ? '⏳ Deleting...' : '🗑️ Delete Member'}
           </button>
         </div>
 
-        {/* ===== LOADING ===== */}
         {loading && (
-          <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--gray-text)' }}>
-            Loading profile...
-          </div>
+          <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--gray-text)' }}>Loading profile...</div>
         )}
 
-        {/* ===== NOT FOUND ===== */}
         {!loading && !member && (
-          <div style={{
-            backgroundColor: 'var(--white)', borderRadius: 'var(--radius)',
-            padding: '3rem', textAlign: 'center', color: 'var(--gray-text)', boxShadow: 'var(--shadow)',
-          }}>
+          <div style={{ backgroundColor: 'var(--white)', borderRadius: 'var(--radius)', padding: '3rem', textAlign: 'center', color: 'var(--gray-text)', boxShadow: 'var(--shadow)' }}>
             <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>❌</div>
             <h3>Member not found</h3>
           </div>
         )}
 
-        {/* ===== MAIN CARD ===== */}
-        {!loading && member && (
-          <div style={{
-            backgroundColor: 'var(--white)', borderRadius: 'var(--radius)',
-            boxShadow: 'var(--shadow)', overflow: 'hidden',
-          }}>
+        {!loading && member && (() => {
+          const maritalBadge = getMaritalBadge(member.marital_status);
+          const categoryBadge = getCategoryBadge(member.category);
+          const isMarried = member.marital_status === 'Married';
+          const isWidow = member.marital_status === 'Widow';
+          const isMale = member.gender === 'Male';
+          const isFemale = member.gender === 'Female';
+          const hasChildren = member.children && member.children.length > 0;
 
-            {/* Header */}
-            <div className="profile-header">
-              <div className="photo-wrapper">
-                <div className="photo-circle">
-                  {photoUrl ? (
-                    <img src={photoUrl} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <span style={{ fontSize: '2.2rem' }}>
-                      {member.category === 'under18' ? '👦' : member.category === 'senior' ? '👴' : '🧑'}
+          return (
+            <div style={{ backgroundColor: 'var(--white)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', overflow: 'hidden' }}>
+
+              {/* Header */}
+              <div className="profile-header">
+                <div className="photo-wrapper">
+                  <div className="photo-circle">
+                    {photoUrl ? (
+                      <Image src={photoUrl} alt="Profile" width={85} height={85} style={{ objectFit: 'cover', borderRadius: '50%' }} />
+                    ) : (
+                      <span style={{ fontSize: '2.2rem' }}>
+                        {member.category === 'under18' ? '👦' : member.category === 'senior' ? '👴' : member.category === 'widow' ? '🕊️' : '🧑'}
+                      </span>
+                    )}
+                  </div>
+                  <label className="photo-upload-btn">
+                    {uploading ? '⏳' : '📷'}
+                    <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} />
+                  </label>
+                </div>
+
+                <div className="profile-header-text" style={{ flex: 1 }}>
+                  <h2>{member.name}</h2>
+                  <p>ID: {member.id}</p>
+                  <div className="profile-header-badges">
+                    <span style={{
+                      backgroundColor: member.voting_eligible ? 'var(--green-light)' : '#ef5350',
+                      color: 'white', padding: '3px 10px', borderRadius: '12px',
+                      fontSize: '0.75rem', fontWeight: '600',
+                    }}>
+                      {member.voting_eligible ? '✅ Eligible to Vote' : '❌ Not Eligible to Vote'}
                     </span>
+                    {/* ✅ Category badge — widow bhi show hoga */}
+                    <span style={{
+                      backgroundColor: categoryBadge.bg,
+                      color: 'white', padding: '3px 10px', borderRadius: '12px',
+                      fontSize: '0.75rem', fontWeight: '600',
+                    }}>
+                      {categoryBadge.emoji} {categoryBadge.label}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Personal Info */}
+              <div className="profile-info-section">
+                <h3 className="section-title">👤 Personal Information</h3>
+                {infoRow('Member ID', member.id)}
+                {infoRow('Full Name', member.name)}
+                {infoRow("Father's Name", member.father_name)}
+                {infoRow('Cast', member.member_cast)}
+                {infoRow('Date of Birth', member.date_of_birth)}
+                {infoRow('Age', member.age)}
+                {infoRow('Gender', member.gender)}
+                {member.category === 'under18' ? infoRow('B-Form', member.b_form) : infoRow('CNIC', member.cnic)}
+                {infoRow('Phone', member.phone)}
+                {infoRow('Email', member.email)}
+                {infoRow('Address', member.address)}
+                {infoRow('Occupation', member.occupation)}
+                {infoRow('Entry Date', member.entry_date)}
+              </div>
+
+              {/* ✅ Marital Info — Married / Widow / Unmarried teeno handle */}
+              {member.category !== 'under18' && (
+                <div className="profile-info-section" style={{ borderTop: '1px solid var(--green-pale)' }}>
+                  <h3 className="section-title">💍 Marital Information</h3>
+
+                  {/* ✅ Status badge — Widow purple mein show hoga */}
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <span style={{
+                      display: 'inline-block',
+                      backgroundColor: maritalBadge.bg,
+                      color: 'white',
+                      padding: '4px 14px',
+                      borderRadius: '12px',
+                      fontSize: '0.8rem',
+                      fontWeight: '600',
+                    }}>
+                      {maritalBadge.emoji} {maritalBadge.label}
+                    </span>
+                  </div>
+
+                  {/* ✅ Male + Married: Wives show karo */}
+                  {isMale && isMarried && member.wives && member.wives.length > 0 && (
+                    <div>
+                      {member.wives.map((wife: Wife, i: number) => (
+                        <div key={i} style={{ marginBottom: '0.75rem' }}>
+                          {member.wives && member.wives.length > 1 && (
+                            <p style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--green-dark)', marginBottom: '0.5rem' }}>
+                              👩 Wife {i + 1}
+                            </p>
+                          )}
+                          <div className="married-grid">
+                            <div className="married-card">
+                              <div className="married-card-label">👩 Wife&apos;s Name</div>
+                              <div className="married-card-value">{wife.name || '-'}</div>
+                            </div>
+                            <div className="married-card">
+                              <div className="married-card-label">🪪 Wife&apos;s CNIC</div>
+                              <div className="married-card-value">{wife.cnic || '-'}</div>
+                            </div>
+                            <div className="married-card">
+                              <div className="married-card-label">🎂 Wife&apos;s DOB</div>
+                              <div className="married-card-value">{wife.dob || '-'}</div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* ✅ Female + Married: Husband show karo */}
+                  {isFemale && isMarried && (
+                    <div className="married-grid">
+                      <div className="married-card">
+                        <div className="married-card-label">👨 Husband&apos;s Name</div>
+                        <div className="married-card-value">{member.husband_name || '-'}</div>
+                      </div>
+                      <div className="married-card">
+                        <div className="married-card-label">🪪 Husband&apos;s CNIC</div>
+                        <div className="married-card-value">{member.husband_cnic || '-'}</div>
+                      </div>
+                      <div className="married-card">
+                        <div className="married-card-label">🎂 Husband&apos;s DOB</div>
+                        <div className="married-card-value">{member.husband_dob || '-'}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ✅ Widow: Late Husband show karo */}
+                  {isWidow && (
+                    <div>
+                      <p style={{ fontSize: '0.8rem', color: '#7b1fa2', fontWeight: '600', marginBottom: '0.5rem' }}>
+                        🕊️ Late Husband Details
+                      </p>
+                      <div className="married-grid">
+                        <div className="married-card">
+                          <div className="married-card-label">👨 Late Husband&apos;s Name</div>
+                          <div className="married-card-value">{member.husband_name || '-'}</div>
+                        </div>
+                        <div className="married-card">
+                          <div className="married-card-label">🪪 Late Husband&apos;s CNIC</div>
+                          <div className="married-card-value">{member.husband_cnic || '-'}</div>
+                        </div>
+                        <div className="married-card">
+                          <div className="married-card-label">🎂 Late Husband&apos;s DOB</div>
+                          <div className="married-card-value">{member.husband_dob || '-'}</div>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
-                <label className="photo-upload-btn">
-                  {uploading ? '⏳' : '📷'}
-                  <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} />
-                </label>
-              </div>
+              )}
 
-              <div className="profile-header-text" style={{ flex: 1 }}>
-                <h2>{member.name}</h2>
-                <p>ID: {member.id}</p>
-                <div className="profile-header-badges">
-                  <span style={{
-                    backgroundColor: member.voting_eligible ? 'var(--green-light)' : '#ef5350',
-                    color: 'white', padding: '3px 10px', borderRadius: '12px',
-                    fontSize: '0.75rem', fontWeight: '600',
-                  }}>
-                    {member.voting_eligible ? '✅ Eligible to Vote' : '❌ Not Eligible to Vote'}
-                  </span>
-                  <span style={{
-                    backgroundColor: member.category === 'under18' ? '#1565c0' : member.category === 'senior' ? '#e65100' : 'var(--green-main)',
-                    color: 'white', padding: '3px 10px', borderRadius: '12px',
-                    fontSize: '0.75rem', fontWeight: '600',
-                  }}>
-                    {member.category === 'under18' ? '👦 Under 18' : member.category === 'senior' ? '👴 Senior Citizen' : '🧑 Adult'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* ===== Personal Info ===== */}
-            <div className="profile-info-section">
-              <h3 className="section-title">👤 Personal Information</h3>
-              {infoRow('Member ID', member.id)}
-              {infoRow('Full Name', member.name)}
-              {infoRow("Father's Name", member.father_name)}
-              {infoRow('Cast', member.member_cast)}
-              {infoRow('Date of Birth', member.date_of_birth)}
-              {infoRow('Age', member.age)}
-              {infoRow('Gender', member.gender)}
-              {member.category === 'under18' ? infoRow('B-Form', member.b_form) : infoRow('CNIC', member.cnic)}
-              {infoRow('Phone', member.phone)}
-              {infoRow('Email', member.email)}
-              {infoRow('Address', member.address)}
-              {infoRow('Occupation', member.occupation)}
-              {infoRow('Entry Date', member.entry_date)}
-            </div>
-
-            {/* ===== Marital Info ===== */}
-            {member.category !== 'under18' && (
-              <div className="profile-info-section" style={{ borderTop: '1px solid var(--green-pale)' }}>
-                <h3 className="section-title">💍 Marital Information</h3>
-
-                {/* Status badge */}
-                <div style={{ marginBottom: '0.75rem' }}>
-                  <span style={{
-                    display: 'inline-block',
-                    backgroundColor: member.marital_status === 'Married' ? 'var(--green-main)' : 'var(--gray-text)',
-                    color: 'white',
-                    padding: '4px 14px',
-                    borderRadius: '12px',
-                    fontSize: '0.8rem',
-                    fontWeight: '600',
-                  }}>
-                    {member.marital_status === 'Married' ? '💍 Married' : '🧑 Unmarried'}
-                  </span>
-                </div>
-
-                {/* ✅ Wife cards — Name, CNIC, DOB (3 columns) */}
-                {member.marital_status === 'Married' && (
-                  <div className="married-grid">
-                    <div className="married-card">
-                      <div className="married-card-label">👩 Wife&apos;s Name</div>
-                      <div className="married-card-value">{member.wife_name || '-'}</div>
-                    </div>
-                    <div className="married-card">
-                      <div className="married-card-label">🪪 Wife&apos;s CNIC</div>
-                      <div className="married-card-value">{member.wife_cnic || '-'}</div>
-                    </div>
-                    <div className="married-card">
-                      <div className="married-card-label">🎂 Wife&apos;s Date of Birth</div>
-                      <div className="married-card-value">{member.wife_dob || '-'}</div>
-                    </div>
+              {/* ✅ Children — Married aur Widow dono ke liye show karo */}
+              {(isMarried || isWidow) && hasChildren && (
+                <div className="profile-info-section" style={{ borderTop: '1px solid var(--green-pale)' }}>
+                  <h3 className="section-title">👨‍👩‍👧 Children ({member.children!.length})</h3>
+                  <div className="children-grid">
+                    {member.children!.map((child: Child, index: number) => (
+                      <div key={index} className="child-card">
+                        <p className="child-name">
+                          {child.gender === 'Female' ? '👧' : '👦'} {child.name}
+                        </p>
+                        <p className="child-detail">DOB: {child.dob || '-'}</p>
+                        <p className="child-detail">Gender: {child.gender}</p>
+                        {child.bForm && <p className="child-detail">B-Form: {child.bForm}</p>}
+                      </div>
+                    ))}
                   </div>
-                )}
-              </div>
-            )}
-
-            {/* ===== Children ===== */}
-            {member.marital_status === 'Married' && member.children && member.children.length > 0 && (
-              <div className="profile-info-section" style={{ borderTop: '1px solid var(--green-pale)' }}>
-                <h3 className="section-title">👨‍👩‍👧 Children ({member.children.length})</h3>
-                <div className="children-grid">
-                  {member.children.map((child: Child, index: number) => (
-                    <div key={index} className="child-card">
-                      <p className="child-name">
-                        {child.gender === 'Female' ? '👧' : '👦'} {child.name}
-                      </p>
-                      {/* ✅ DOB instead of Age */}
-                      <p className="child-detail">DOB: {child.dob || '-'}</p>
-                      <p className="child-detail">Gender: {child.gender}</p>
-                      {child.bForm && <p className="child-detail">B-Form: {child.bForm}</p>}
-                    </div>
-                  ))}
                 </div>
-              </div>
-            )}
+              )}
 
-          </div>
-        )}
+            </div>
+          );
+        })()}
       </div>
     </main>
   );

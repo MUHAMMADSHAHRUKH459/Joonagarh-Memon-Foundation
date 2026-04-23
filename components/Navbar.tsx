@@ -10,6 +10,29 @@ const Navbar = () => {
   const pathname = usePathname();
   const [unreadCount, setUnreadCount] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  // ✅ localStorage se initial value seedha lo — useEffect ki zaroorat nahi
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const saved = localStorage.getItem('theme');
+    if (saved === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      return true;
+    }
+    return false;
+  });
+
+  // ✅ Dark mode toggle
+  const toggleDarkMode = () => {
+    const next = !darkMode;
+    setDarkMode(next);
+    if (next) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+      localStorage.setItem('theme', 'light');
+    }
+  };
 
   useEffect(() => {
     const fetchUnread = async () => {
@@ -25,14 +48,14 @@ const Navbar = () => {
   }, []);
 
   const navLinks = [
-    { label: 'Home',          icon: '🏠', path: '/' },
-    { label: 'Voters',        icon: '🗳️', path: '/voters' },
-    { label: 'History',       icon: '📋', path: '/history' },
-    { label: 'Reports',       icon: '📊', path: '/reports' },
-    { label: 'Accounts',      icon: '📒', path: '/accounts' },
-    { label: 'Broadcast',     icon: '📢', path: '/broadcast' },
-    { label: 'Funeral',       icon: '🕊️', path: '/funeral' },
-    { label: 'Alerts',        icon: '🔔', path: '/notifications' },
+    { label: 'Home',      icon: '🏠', path: '/' },
+    { label: 'Voters',    icon: '🗳️', path: '/voters' },
+    { label: 'History',   icon: '📋', path: '/history' },
+    { label: 'Reports',   icon: '📊', path: '/reports' },
+    { label: 'Accounts',  icon: '📒', path: '/accounts' },
+    { label: 'Broadcast', icon: '📢', path: '/broadcast' },
+    { label: 'Funeral',   icon: '🕊️', path: '/funeral' },
+    { label: 'Alerts',    icon: '🔔', path: '/notifications' },
   ];
 
   const navigate = (path: string) => {
@@ -120,9 +143,7 @@ const Navbar = () => {
           background: rgba(255,255,255,0.15);
           color: white;
         }
-        .nav-link .nav-icon {
-          font-size: 13px;
-        }
+        .nav-link .nav-icon { font-size: 13px; }
         .nav-badge {
           position: absolute;
           top: 3px;
@@ -242,6 +263,34 @@ const Navbar = () => {
         .mobile-logout:hover { background: #c62828; color: white; }
         .mobile-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 4px 0; }
 
+        /* ✅ Floating Dark Mode Button */
+        .dark-mode-fab {
+          position: fixed;
+          bottom: 24px;
+          right: 24px;
+          z-index: 999;
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          border: none;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.3rem;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+          transition: background 0.3s, transform 0.2s, box-shadow 0.2s;
+          background: var(--green-dark);
+          color: white;
+        }
+        .dark-mode-fab:hover {
+          transform: scale(1.1);
+          box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+        }
+        .dark-mode-fab:active {
+          transform: scale(0.95);
+        }
+
         @media (max-width: 900px) {
           .desktop-nav { display: none !important; }
           .hamburger { display: flex !important; }
@@ -317,6 +366,15 @@ const Navbar = () => {
           🔒 Logout
         </button>
       </div>
+
+      {/* ✅ Floating Dark Mode Toggle Button */}
+      <button
+        className="dark-mode-fab"
+        onClick={toggleDarkMode}
+        title={darkMode ? 'Light Mode' : 'Dark Mode'}
+      >
+        {darkMode ? '☀️' : '🌙'}
+      </button>
     </>
   );
 };
