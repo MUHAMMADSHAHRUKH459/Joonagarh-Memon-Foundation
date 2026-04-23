@@ -9,6 +9,12 @@ interface Child {
   bForm: string;
 }
 
+interface Wife {
+  name: string;
+  cnic: string;
+  dob: string;
+}
+
 interface MemberFormData {
   name: string;
   fatherName: string;
@@ -22,9 +28,12 @@ interface MemberFormData {
   address: string;
   occupation: string;
   maritalStatus: string;
-  wifeName: string;
-  wifeCnic: string;
-  wifeDob: string;
+  // Male fields
+  wives: Wife[];
+  // Female fields
+  husbandName: string;
+  husbandCnic: string;
+  husbandDob: string;
   children: Child[];
 }
 
@@ -53,7 +62,6 @@ const labelStyle = {
   display: 'block',
 };
 
-// Age calculate from DOB (accurate)
 const getAgeFromDob = (dob: string): number => {
   if (!dob) return 0;
   const today = new Date();
@@ -78,37 +86,56 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
     address: '',
     occupation: '',
     maritalStatus: 'Unmarried',
-    wifeName: '',
-    wifeCnic: '',
-    wifeDob: '',
+    husbandName: '',
+    husbandCnic: '',
+    husbandDob: '',
   });
 
+  const [wives, setWives] = useState<Wife[]>([{ name: '', cnic: '', dob: '' }]);
   const [children, setChildren] = useState<Child[]>([]);
 
   const age = getAgeFromDob(form.dateOfBirth);
   const isUnder18 = age < 18 && age > 0;
+  const isMale = form.gender === 'Male';
+  const isFemale = form.gender === 'Female';
+  const isMarried = form.maritalStatus === 'Married';
+  const isWidow = form.maritalStatus === 'Widow';
+  const showFamilySection = !isUnder18 && (isMarried || isWidow);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm(prev => {
+      const updated = { ...prev, [name]: value };
+      // Gender change hone par marital status reset
+      if (name === 'gender') updated.maritalStatus = 'Unmarried';
+      return updated;
+    });
   };
 
-  const addChild = () => {
-    setChildren([...children, { name: '', dob: '', gender: 'Male', bForm: '' }]);
+  // Wife handlers
+  const addWife = () => setWives([...wives, { name: '', cnic: '', dob: '' }]);
+  const updateWife = (index: number, field: keyof Wife, value: string) => {
+    const updated = [...wives];
+    updated[index] = { ...updated[index], [field]: value };
+    setWives(updated);
+  };
+  const removeWife = (index: number) => {
+    if (wives.length === 1) return;
+    setWives(wives.filter((_, i) => i !== index));
   };
 
+  // Child handlers
+  const addChild = () => setChildren([...children, { name: '', dob: '', gender: 'Male', bForm: '' }]);
   const updateChild = (index: number, field: keyof Child, value: string) => {
     const updated = [...children];
     updated[index] = { ...updated[index], [field]: value };
     setChildren(updated);
   };
-
-  const removeChild = (index: number) => {
-    setChildren(children.filter((_, i) => i !== index));
-  };
+  const removeChild = (index: number) => setChildren(children.filter((_, i) => i !== index));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({ ...form, children });
+    onSubmit({ ...form, wives, children });
   };
 
   return (
@@ -123,18 +150,17 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
           gap: 1rem;
           margin-bottom: 1rem;
         }
-        .wife-grid {
+        .spouse-grid {
           display: grid;
           grid-template-columns: 1fr 1fr 1fr;
           gap: 1rem;
-          margin-bottom: 1rem;
         }
-        @media (max-width: 768px) {
-          .wife-grid { grid-template-columns: 1fr 1fr; }
-        }
-        @media (max-width: 480px) {
-          .wife-grid { grid-template-columns: 1fr; }
-          .member-form-grid { grid-template-columns: 1fr; }
+        .wife-card {
+          background: var(--white);
+          border: 1px solid var(--green-border);
+          border-radius: var(--radius);
+          padding: 0.85rem;
+          margin-bottom: 0.75rem;
         }
         .child-row {
           background: var(--white);
@@ -149,13 +175,14 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
           gap: 0.5rem;
           align-items: end;
         }
-        .child-age-badge {
-          margin-top: 0.5rem;
+        .child-age-badge { margin-top: 0.5rem; }
+        @media (max-width: 768px) {
+          .spouse-grid { grid-template-columns: 1fr 1fr; }
         }
         @media (max-width: 600px) {
-          .child-row-grid {
-            grid-template-columns: 1fr 1fr;
-          }
+          .member-form-grid { grid-template-columns: 1fr; }
+          .spouse-grid { grid-template-columns: 1fr; }
+          .child-row-grid { grid-template-columns: 1fr 1fr; }
           .child-row-grid .child-name   { grid-column: 1 / 3; }
           .child-row-grid .child-dob    { grid-column: 1 / 3; }
           .child-row-grid .child-gender { grid-column: 1 / 2; }
@@ -171,7 +198,7 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
       }}>
         <h2 style={{ marginBottom: '1.5rem', fontSize: '1.4rem' }}>➕ Add New Member</h2>
 
-        {/* Member Age Preview */}
+        {/* Age Preview */}
         {form.dateOfBirth && (
           <div style={{
             backgroundColor: isUnder18 ? '#e3f2fd' : 'var(--green-pale)',
@@ -180,10 +207,8 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
             fontSize: '0.9rem', fontWeight: '600',
             color: isUnder18 ? '#1565c0' : 'var(--green-dark)',
           }}>
-            {isUnder18
-              ? `👦 Age: ${age} — Under 18 Category (B-Form required)`
-              : age >= 60
-              ? `👴 Age: ${age} — Senior Citizen Category`
+            {isUnder18 ? `👦 Age: ${age} — Under 18 Category (B-Form required)`
+              : age >= 60 ? `👴 Age: ${age} — Senior Citizen Category`
               : `🧑 Age: ${age} — Adult Category`}
           </div>
         )}
@@ -248,132 +273,227 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
             <>
               <div style={{ marginBottom: '1rem' }}>
                 <label style={labelStyle}>Marital Status *</label>
-                <select style={{ ...inputStyle, width: 'auto', minWidth: '200px' }} name="maritalStatus" value={form.maritalStatus} onChange={handleChange}>
+                <select
+                  style={{ ...inputStyle, width: 'auto', minWidth: '200px' }}
+                  name="maritalStatus"
+                  value={form.maritalStatus}
+                  onChange={handleChange}
+                >
                   <option>Unmarried</option>
                   <option>Married</option>
+                  {isFemale && <option>Widow</option>}
                 </select>
               </div>
 
-              {form.maritalStatus === 'Married' && (
+              {/* ═══ FAMILY SECTION ═══ */}
+              {showFamilySection && (
                 <div style={{
                   backgroundColor: 'var(--green-pale)', padding: '1rem',
                   borderRadius: 'var(--radius)', marginBottom: '1rem',
                   border: '1px solid var(--green-border)',
                 }}>
-                  <h3 style={{ marginBottom: '1rem', fontSize: '1rem' }}>👨‍👩‍👧 Family Details</h3>
+                  <h3 style={{ marginBottom: '1rem', fontSize: '1rem' }}>
+                    {isMale ? '👨‍👩‍👧 Family Details' : isWidow ? '🕊️ Late Husband Details' : '👫 Husband Details'}
+                  </h3>
 
-                  {/* Wife Info */}
-                  <div className="wife-grid">
-                    <div>
-                      <label style={labelStyle}>Wife&apos;s Name</label>
-                      <input style={inputStyle} name="wifeName" value={form.wifeName} onChange={handleChange} placeholder="Wife's name" />
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Wife&apos;s CNIC</label>
-                      <input style={inputStyle} name="wifeCnic" value={form.wifeCnic} onChange={handleChange} placeholder="42101-1234567-1" />
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Wife&apos;s Date of Birth</label>
-                      <input style={inputStyle} name="wifeDob" type="date" value={form.wifeDob} onChange={handleChange} />
-                    </div>
-                  </div>
+                  {/* ── MALE: Multiple Wives ── */}
+                  {isMale && isMarried && (
+                    <div style={{ marginBottom: '1rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                        <label style={labelStyle}>
+                          Wives ({wives.length})
+                        </label>
+                        <button
+                          type="button"
+                          onClick={addWife}
+                          style={{
+                            backgroundColor: 'var(--green-main)', color: 'white', border: 'none',
+                            padding: '6px 14px', borderRadius: '8px', cursor: 'pointer',
+                            fontSize: '0.85rem', fontWeight: '600',
+                          }}
+                        >+ Add Wife</button>
+                      </div>
 
-                  {/* Children */}
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                      <label style={labelStyle}>Children ({children.length})</label>
-                      <button type="button" onClick={addChild} style={{
-                        backgroundColor: 'var(--green-main)', color: 'white', border: 'none',
-                        padding: '6px 14px', borderRadius: '8px', cursor: 'pointer',
-                        fontSize: '0.85rem', fontWeight: '600',
-                      }}>+ Add Child</button>
-                    </div>
-
-                    {children.map((child, index) => {
-                      const childAge = getAgeFromDob(child.dob);
-                      const childIsUnder18 = child.dob !== '' && childAge < 18;
-
-                      return (
-                        <div key={index} className="child-row">
-                          <div className="child-row-grid">
-                            <div className="child-name">
+                      {wives.map((wife, index) => (
+                        <div key={index} className="wife-card">
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
+                            <span style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--green-dark)' }}>
+                              👩 Wife {index + 1}
+                            </span>
+                            {wives.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeWife(index)}
+                                style={{
+                                  background: '#ff4444', color: 'white', border: 'none',
+                                  borderRadius: '6px', padding: '3px 10px',
+                                  cursor: 'pointer', fontSize: '0.78rem',
+                                }}
+                              >✕ Remove</button>
+                            )}
+                          </div>
+                          <div className="spouse-grid">
+                            <div>
                               <label style={{ ...labelStyle, fontSize: '0.78rem' }}>Name</label>
                               <input
                                 style={inputStyle}
-                                placeholder="Child's name"
-                                value={child.name}
-                                onChange={(e) => updateChild(index, 'name', e.target.value)}
+                                placeholder="Wife's name"
+                                value={wife.name}
+                                onChange={e => updateWife(index, 'name', e.target.value)}
                               />
                             </div>
-                            <div className="child-dob">
+                            <div>
+                              <label style={{ ...labelStyle, fontSize: '0.78rem' }}>CNIC</label>
+                              <input
+                                style={inputStyle}
+                                placeholder="42101-1234567-1"
+                                value={wife.cnic}
+                                onChange={e => updateWife(index, 'cnic', e.target.value)}
+                              />
+                            </div>
+                            <div>
                               <label style={{ ...labelStyle, fontSize: '0.78rem' }}>Date of Birth</label>
                               <input
                                 style={inputStyle}
                                 type="date"
-                                value={child.dob}
-                                onChange={(e) => updateChild(index, 'dob', e.target.value)}
+                                value={wife.dob}
+                                onChange={e => updateWife(index, 'dob', e.target.value)}
                               />
-                            </div>
-                            <div className="child-gender">
-                              <label style={{ ...labelStyle, fontSize: '0.78rem' }}>Gender</label>
-                              <select
-                                style={inputStyle}
-                                value={child.gender}
-                                onChange={(e) => updateChild(index, 'gender', e.target.value)}
-                              >
-                                <option>Male</option>
-                                <option>Female</option>
-                              </select>
-                            </div>
-                            <div className="child-bform">
-                              <label style={{ ...labelStyle, fontSize: '0.78rem' }}>B-Form</label>
-                              <input
-                                style={inputStyle}
-                                placeholder="Optional"
-                                value={child.bForm}
-                                onChange={(e) => updateChild(index, 'bForm', e.target.value)}
-                              />
-                            </div>
-                            <div className="child-remove" style={{ display: 'flex', alignItems: 'flex-end' }}>
-                              <button
-                                type="button"
-                                onClick={() => removeChild(index)}
-                                style={{
-                                  background: '#ff4444', color: 'white', border: 'none',
-                                  borderRadius: '8px', padding: '10px 12px',
-                                  cursor: 'pointer', fontSize: '0.9rem',
-                                }}
-                              >✕</button>
                             </div>
                           </div>
-
-                          {/* ✅ Auto age badge */}
-                          {child.dob && (
-                            <div className="child-age-badge">
-                              <span style={{
-                                display: 'inline-flex', alignItems: 'center', gap: '4px',
-                                backgroundColor: childIsUnder18 ? '#e3f2fd' : '#e8f5e9',
-                                color: childIsUnder18 ? '#1565c0' : 'var(--green-dark)',
-                                border: `1px solid ${childIsUnder18 ? '#90caf9' : 'var(--green-border)'}`,
-                                borderRadius: '20px', padding: '3px 10px',
-                                fontSize: '0.78rem', fontWeight: '700',
-                              }}>
-                                {childIsUnder18
-                                  ? `👦 Age: ${childAge} — Under 18 (Child Category)`
-                                  : `🧑 Age: ${childAge} — Adult`}
-                              </span>
-                            </div>
-                          )}
                         </div>
-                      );
-                    })}
-                  </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* ── FEMALE: Husband Details (Married or Widow) ── */}
+                  {isFemale && (isMarried || isWidow) && (
+                    <div style={{ marginBottom: '1rem' }}>
+                      {isWidow && (
+                        <div style={{
+                          backgroundColor: '#f3e5f5', border: '1px solid #ce93d8',
+                          borderRadius: '8px', padding: '8px 12px', marginBottom: '0.75rem',
+                          fontSize: '0.8rem', color: '#6a1b9a', fontWeight: '600',
+                        }}>
+                          🕊️ Widow — Please enter late husband&apos;s details
+                        </div>
+                      )}
+                      <div className="spouse-grid">
+                        <div>
+                          <label style={{ ...labelStyle, fontSize: '0.78rem' }}>
+                            {isWidow ? 'Late Husband\'s Name' : 'Husband\'s Name'}
+                          </label>
+                          <input
+                            style={inputStyle}
+                            name="husbandName"
+                            value={form.husbandName}
+                            onChange={handleChange}
+                            placeholder="Husband's name"
+                          />
+                        </div>
+                        <div>
+                          <label style={{ ...labelStyle, fontSize: '0.78rem' }}>
+                            {isWidow ? 'Late Husband\'s CNIC' : 'Husband\'s CNIC'}
+                          </label>
+                          <input
+                            style={inputStyle}
+                            name="husbandCnic"
+                            value={form.husbandCnic}
+                            onChange={handleChange}
+                            placeholder="42101-1234567-1"
+                          />
+                        </div>
+                        <div>
+                          <label style={{ ...labelStyle, fontSize: '0.78rem' }}>
+                            {isWidow ? 'Late Husband\'s DOB' : 'Husband\'s Date of Birth'}
+                          </label>
+                          <input
+                            style={inputStyle}
+                            name="husbandDob"
+                            type="date"
+                            value={form.husbandDob}
+                            onChange={handleChange}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Children (Male married OR Female widow) ── */}
+                  {((isMale && isMarried) || (isFemale && isWidow)) && (
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                        <label style={labelStyle}>Children ({children.length})</label>
+                        <button
+                          type="button"
+                          onClick={addChild}
+                          style={{
+                            backgroundColor: 'var(--green-main)', color: 'white', border: 'none',
+                            padding: '6px 14px', borderRadius: '8px', cursor: 'pointer',
+                            fontSize: '0.85rem', fontWeight: '600',
+                          }}
+                        >+ Add Child</button>
+                      </div>
+
+                      {children.map((child, index) => {
+                        const childAge = getAgeFromDob(child.dob);
+                        const childIsUnder18 = child.dob !== '' && childAge < 18;
+                        return (
+                          <div key={index} className="child-row">
+                            <div className="child-row-grid">
+                              <div className="child-name">
+                                <label style={{ ...labelStyle, fontSize: '0.78rem' }}>Name</label>
+                                <input style={inputStyle} placeholder="Child's name" value={child.name}
+                                  onChange={e => updateChild(index, 'name', e.target.value)} />
+                              </div>
+                              <div className="child-dob">
+                                <label style={{ ...labelStyle, fontSize: '0.78rem' }}>Date of Birth</label>
+                                <input style={inputStyle} type="date" value={child.dob}
+                                  onChange={e => updateChild(index, 'dob', e.target.value)} />
+                              </div>
+                              <div className="child-gender">
+                                <label style={{ ...labelStyle, fontSize: '0.78rem' }}>Gender</label>
+                                <select style={inputStyle} value={child.gender}
+                                  onChange={e => updateChild(index, 'gender', e.target.value)}>
+                                  <option>Male</option>
+                                  <option>Female</option>
+                                </select>
+                              </div>
+                              <div className="child-bform">
+                                <label style={{ ...labelStyle, fontSize: '0.78rem' }}>B-Form</label>
+                                <input style={inputStyle} placeholder="Optional" value={child.bForm}
+                                  onChange={e => updateChild(index, 'bForm', e.target.value)} />
+                              </div>
+                              <div className="child-remove" style={{ display: 'flex', alignItems: 'flex-end' }}>
+                                <button type="button" onClick={() => removeChild(index)}
+                                  style={{ background: '#ff4444', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 12px', cursor: 'pointer', fontSize: '0.9rem' }}>✕</button>
+                              </div>
+                            </div>
+                            {child.dob && (
+                              <div className="child-age-badge">
+                                <span style={{
+                                  display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                  backgroundColor: childIsUnder18 ? '#e3f2fd' : '#e8f5e9',
+                                  color: childIsUnder18 ? '#1565c0' : 'var(--green-dark)',
+                                  border: `1px solid ${childIsUnder18 ? '#90caf9' : 'var(--green-border)'}`,
+                                  borderRadius: '20px', padding: '3px 10px',
+                                  fontSize: '0.78rem', fontWeight: '700',
+                                }}>
+                                  {childIsUnder18 ? `👦 Age: ${childAge} — Under 18 (Child Category)` : `🧑 Age: ${childAge} — Adult`}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
             </>
           )}
 
-          {/* Submit Buttons */}
+          {/* Submit */}
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1rem', flexWrap: 'wrap' }}>
             <button type="button" onClick={onCancel} style={{
               padding: '10px 24px', border: '1.5px solid var(--green-border)',

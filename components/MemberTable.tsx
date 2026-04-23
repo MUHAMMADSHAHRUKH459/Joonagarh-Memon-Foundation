@@ -105,10 +105,10 @@ const MemberTable = ({ members }: MemberTableProps) => {
                     borderRadius: '20px',
                     fontSize: '0.78rem',
                     fontWeight: '600',
-                    backgroundColor: member.category === 'under18' ? '#e3f2fd' : member.category === 'senior' ? '#fff3e0' : '#e8f5ee',
-                    color: member.category === 'under18' ? '#1565c0' : member.category === 'senior' ? '#e65100' : 'var(--green-dark)',
+                    backgroundColor: member.category === 'under18' ? '#e3f2fd' : member.category === 'senior' ? '#fff3e0' : member.category === 'widow' ? '#f3e5f5' : '#e8f5ee',
+                    color: member.category === 'under18' ? '#1565c0' : member.category === 'senior' ? '#e65100' : member.category === 'widow' ? '#6a1b9a' : 'var(--green-dark)',
                   }}>
-                    {member.category === 'under18' ? '👦 Under 18' : member.category === 'senior' ? '👴 Senior' : '🧑 Adult'}
+                    {member.category === 'under18' ? '👦 Under 18' : member.category === 'senior' ? '👴 Senior' : member.category === 'widow' ? '🕊️ Widow' : '🧑 Adult'}
                   </span>
                 </td>
                 <td style={{ padding: '12px 16px' }}>

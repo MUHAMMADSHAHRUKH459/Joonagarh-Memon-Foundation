@@ -15,6 +15,12 @@ interface ChildData {
   bForm?: string;
 }
 
+interface WifeData {
+  name: string;
+  cnic: string;
+  dob: string;
+}
+
 interface MemberFormData {
   name: string;
   fatherName: string;
@@ -28,9 +34,10 @@ interface MemberFormData {
   address?: string;
   occupation?: string;
   maritalStatus: string;
-  wifeName?: string;
-  wifeCnic?: string;
-  wifeDob?: string;
+  wives: WifeData[];
+  husbandName?: string;
+  husbandCnic?: string;
+  husbandDob?: string;
   children: ChildData[];
 }
 
@@ -49,9 +56,10 @@ interface MemberRow {
   address: string | null;
   occupation: string | null;
   marital_status: string;
-  wife_name: string | null;
-  wife_cnic: string | null;
-  wife_dob: string | null;
+  wives: WifeData[];
+  husband_name: string | null;
+  husband_cnic: string | null;
+  husband_dob: string | null;
   children: ChildData[];
   category: string;
   voting_eligible: boolean;
@@ -71,6 +79,19 @@ const getAgeFromDob = (dob: string): number => {
   return age;
 };
 
+// ✅ Child ki age ke hisaab se category decide karo
+const getChildCategory = (age: number): string => {
+  if (age < 18) return 'under18';
+  if (age >= 60) return 'senior';
+  return 'adult';
+};
+
+// ✅ Widow category decide karo — age bhi consider karo
+const getFinalCategory = (age: number, gender: string, maritalStatus: string): string => {
+  if (maritalStatus === 'Widow' && gender === 'Female') return 'widow';
+  return getCategory(age);
+};
+
 export default function Home() {
   const router = useRouter();
   const [members, setMembers] = useState<MemberRow[]>([]);
@@ -88,10 +109,13 @@ export default function Home() {
       const newNotifications: string[] = [];
       const updated = await Promise.all((data || []).map(async (member: MemberRow) => {
         const age = calculateAge(member.date_of_birth);
-        const newCategory = getCategory(age);
         const dob = new Date(member.date_of_birth);
         const today = new Date();
         const isBirthdayToday = dob.getDate() === today.getDate() && dob.getMonth() === today.getMonth();
+
+        // Widow category preserve karo — auto update na karo
+        const isWidow = member.marital_status === 'Widow' && member.gender === 'Female';
+        const newCategory = isWidow ? 'widow' : getCategory(age);
 
         if (newCategory !== member.category) {
           await supabase.from('members').update({
@@ -147,7 +171,8 @@ export default function Home() {
 
   const handleAddMember = async (member: MemberFormData) => {
     const age = calculateAge(member.dateOfBirth);
-    const category = getCategory(age);
+    // ✅ Widow category correctly set karo
+    const finalCategory = getFinalCategory(age, member.gender, member.maritalStatus);
 
     const { data: allMembers } = await supabase.from('members').select('id');
     const lastNum = allMembers && allMembers.length > 0
@@ -170,11 +195,12 @@ export default function Home() {
       address: member.address || null,
       occupation: member.occupation || null,
       marital_status: member.maritalStatus,
-      wife_name: member.wifeName || null,
-      wife_cnic: member.wifeCnic || null,
-      wife_dob: member.wifeDob || null,
+      wives: member.wives || [],
+      husband_name: member.husbandName || null,
+      husband_cnic: member.husbandCnic || null,
+      husband_dob: member.husbandDob || null,
       children: member.children || [],
-      category,
+      category: finalCategory,
       voting_eligible: isVotingEligible(age),
       entry_date: formatDate(new Date()),
       fees_paid: {},
@@ -184,36 +210,63 @@ export default function Home() {
     if (error) { alert('Error adding member. Please try again.'); return; }
 
     await supabase.from('notifications').insert([{
-      message: `👤 New member added: ${newMember.name} (${newMember.id}) - Category: ${category}`,
+      message: `👤 New member added: ${newMember.name} (${newMember.id}) - Category: ${finalCategory}`,
       type: 'new_member',
     }]);
 
-    if (member.maritalStatus === 'Married' && member.children && member.children.length > 0) {
-      const childrenUnder18 = member.children.filter((c: ChildData) => {
-        const childAge = getAgeFromDob(c.dob);
-        return c.dob !== '' && childAge < 18;
-      });
+    // ✅ FIX: Married ya Widow dono ke children save karo — sirf under18 nahi, SARE valid children
+    const hasChildren = (member.maritalStatus === 'Married' || member.maritalStatus === 'Widow')
+      && member.children && member.children.length > 0;
 
-      for (let i = 0; i < childrenUnder18.length; i++) {
-        const child = childrenUnder18[i];
+    if (hasChildren) {
+      // ✅ FIX: Sirf under18 filter nahi — dob wale SARE children lo
+      const validChildren = member.children.filter((c: ChildData) => c.dob !== '' && c.name !== '');
+
+      for (let i = 0; i < validChildren.length; i++) {
+        const child = validChildren[i];
         const childId = `MEM-${String(lastNum + 2 + i).padStart(3, '0')}`;
         const childAge = getAgeFromDob(child.dob);
 
+        // ✅ FIX: Child ki age ke hisaab se sahi category aur voting eligibility set karo
+        const childCategory = getChildCategory(childAge);
+        const childVotingEligible = childAge >= 18;
+
+        // ✅ FIX: Widow ka child ho to father_name = husband ka naam, warna member ka naam
+        const childFatherName = member.gender === 'Female'
+          ? (member.husbandName || member.name)
+          : member.name;
+
         const childMember = {
-          id: childId, name: child.name, father_name: member.name,
-          member_cast: member.cast, date_of_birth: child.dob, age: childAge,
-          gender: child.gender, cnic: null, b_form: child.bForm || null,
-          phone: null, email: null, address: member.address || null,
-          occupation: null, marital_status: 'Unmarried',
-          wife_name: null, wife_cnic: null, wife_dob: null, children: [],
-          category: 'under18', voting_eligible: false,
-          entry_date: formatDate(new Date()), fees_paid: {}, is_child: true,
+          id: childId,
+          name: child.name,
+          father_name: childFatherName,
+          member_cast: member.cast,
+          date_of_birth: child.dob,
+          age: childAge,
+          gender: child.gender,
+          cnic: null,
+          b_form: child.bForm || null,
+          phone: null,
+          email: null,
+          address: member.address || null,
+          occupation: null,
+          marital_status: 'Unmarried',
+          wives: [],
+          husband_name: null,
+          husband_cnic: null,
+          husband_dob: null,
+          children: [],
+          category: childCategory,           // ✅ under18 / adult / senior — age ke hisaab se
+          voting_eligible: childVotingEligible, // ✅ 18+ ho to eligible
+          entry_date: formatDate(new Date()),
+          fees_paid: {},
+          is_child: true,
         };
 
         const { error: childError } = await supabase.from('members').insert([childMember]);
         if (!childError) {
           await supabase.from('notifications').insert([{
-            message: `👦 Child auto-added: ${child.name} (${childId}) - Father: ${member.name}`,
+            message: `👦 Child auto-added: ${child.name} (${childId}) - Parent: ${member.name} - Category: ${childCategory}`,
             type: 'new_member',
           }]);
         }
@@ -224,7 +277,7 @@ export default function Home() {
     setShowForm(false);
   };
 
-  // Stats
+  // ✅ Stats — widow alag count, 60+ widow senior mein bhi count
   const visibleMembers = members.filter(m => !m.is_child);
   const under18Direct = members.filter(m => m.category === 'under18');
   const familyChildrenUnder18 = members
@@ -236,7 +289,10 @@ export default function Home() {
   const under18Count = under18Direct.length + unregisteredChildren.length;
 
   const adults = members.filter(m => m.category === 'adult');
-  const seniors = members.filter(m => m.category === 'senior');
+  // ✅ Senior: age 60+ wale — chahe widow ho ya na ho
+  const seniors = members.filter(m => m.age >= 60);
+  // ✅ Widow: sirf widow category
+  const widows = members.filter(m => m.category === 'widow');
   const voters = members.filter(m => m.voting_eligible);
   const jamatMembers = members.filter(m => m.marital_status === 'Married' && !m.is_child);
   const totalVisible = visibleMembers.length;
@@ -256,15 +312,13 @@ export default function Home() {
       <style>{`
         .dash-wrap { padding: 2rem; max-width: 1300px; margin: 0 auto; }
 
-        /* stats */
-        .stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 1.5rem; }
+        .stats-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 1.5rem; }
         .stat-card { background: var(--green-pale); border-radius: var(--radius); padding: 1rem; }
         .stat-label { font-size: 0.75rem; color: var(--gray-text); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
         .stat-value { font-size: 1.8rem; font-weight: 700; color: var(--text-dark); line-height: 1; }
         .stat-badge { display: inline-block; font-size: 0.7rem; padding: 2px 8px; border-radius: 20px; margin-top: 6px; font-weight: 600; }
 
-        /* category cards */
-        .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 1.2rem; }
+        .cat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 1.2rem; }
         .cat-card { background: var(--white); border: 1px solid var(--green-border); border-radius: var(--radius); padding: 1.1rem 1.25rem; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; }
         .cat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
         .cat-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
@@ -276,7 +330,6 @@ export default function Home() {
         .cat-bar-fill { height: 100%; border-radius: 2px; }
         .cat-link { font-size: 0.72rem; color: var(--green-main); margin-top: 8px; font-weight: 600; }
 
-        /* quick row */
         .quick-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1.5rem; }
         .quick-card { background: var(--white); border: 1px solid var(--green-border); border-radius: var(--radius); padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: transform 0.15s; }
         .quick-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
@@ -286,7 +339,6 @@ export default function Home() {
         .quick-sub { font-size: 0.75rem; color: var(--gray-text); margin-top: 2px; }
         .quick-num { font-size: 1.6rem; font-weight: 700; }
 
-        /* table */
         .table-card { background: var(--white); border: 1px solid var(--green-border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
         .table-head { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid var(--green-border); }
         .table-title { font-size: 0.95rem; font-weight: 700; color: var(--text-dark); }
@@ -303,47 +355,45 @@ export default function Home() {
         .pill-blue { background: #e3f2fd; color: #1565c0; }
         .pill-green { background: var(--green-pale); color: var(--green-dark); }
         .pill-amber { background: #fff3e0; color: #e65100; }
+        .pill-purple { background: #f3e5f5; color: #6a1b9a; }
         .pill-ok { background: #e8f5e9; color: #2e7d32; }
         .pill-no { background: #fce4e4; color: #c62828; }
         .view-btn { font-size: 0.78rem; color: var(--green-dark); background: var(--green-pale); border: 1px solid var(--green-border); border-radius: 8px; padding: 5px 12px; cursor: pointer; font-weight: 600; white-space: nowrap; }
         .view-btn:hover { background: var(--green-border); }
 
-        /* top bar */
         .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
         .page-title { font-size: 1.4rem; font-weight: 700; color: var(--text-dark); }
         .page-sub { font-size: 0.78rem; color: var(--gray-text); margin-top: 2px; }
         .add-btn { background: var(--green-main); color: white; border: none; padding: 10px 20px; border-radius: var(--radius); font-size: 0.9rem; cursor: pointer; font-weight: 600; }
         .add-btn:hover { opacity: 0.9; }
 
-        /* notification */
         .notif-bar { background: #fff3e0; border: 1px solid #ffb74d; border-radius: var(--radius); padding: 0.85rem 1.25rem; margin-bottom: 1.5rem; }
 
-        /* loading skeleton */
         .skeleton { background: linear-gradient(90deg, var(--green-pale) 25%, var(--green-border) 50%, var(--green-pale) 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: var(--radius); height: 20px; }
         @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
-        /* empty state */
         .empty-state { text-align: center; padding: 3rem; color: var(--gray-text); }
 
-        @media (max-width: 1024px) {
+        @media (max-width: 1200px) {
           .stats-grid { grid-template-columns: repeat(3, 1fr); }
+          .cat-grid { grid-template-columns: repeat(2, 1fr); }
         }
         @media (max-width: 768px) {
           .dash-wrap { padding: 1rem; }
           .stats-grid { grid-template-columns: 1fr 1fr; }
-          .cat-grid { grid-template-columns: 1fr; }
+          .cat-grid { grid-template-columns: 1fr 1fr; }
           .quick-row { grid-template-columns: 1fr; }
           .top-bar { flex-direction: column; align-items: flex-start; }
           .add-btn { width: 100%; text-align: center; }
         }
         @media (max-width: 480px) {
-          .stats-grid { grid-template-columns: 1fr; }
+          .stats-grid { grid-template-columns: 1fr 1fr; }
+          .cat-grid { grid-template-columns: 1fr; }
         }
       `}</style>
 
       <div className="dash-wrap">
 
-        {/* Notifications */}
         {notifications.length > 0 && (
           <div className="notif-bar">
             <p style={{ fontSize: '0.82rem', fontWeight: '700', color: '#e65100', marginBottom: '4px' }}>🔔 Today&apos;s Updates</p>
@@ -353,7 +403,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Top Bar */}
         <div className="top-bar">
           <div>
             <div className="page-title">Members Directory</div>
@@ -362,10 +411,9 @@ export default function Home() {
           <button className="add-btn" onClick={() => setShowForm(true)}>+ Add Member</button>
         </div>
 
-        {/* Search */}
         <SearchBar onSearch={(q) => setSearchQuery(q)} />
 
-        {/* Stats Row */}
+        {/* Stats */}
         <div className="stats-grid">
           {[
             { label: 'Total Members', value: totalVisible, badge: 'Active', badgeBg: '#e8f5e9', badgeColor: '#2e7d32' },
@@ -373,6 +421,7 @@ export default function Home() {
             { label: 'Jamat Members', value: jamatMembers.length, badge: 'Married', badgeBg: '#ede7f6', badgeColor: '#4527a0' },
             { label: 'Senior Citizens', value: seniors.length, badge: '60+ yrs', badgeBg: '#fff3e0', badgeColor: '#e65100' },
             { label: 'Under 18', value: under18Count, badge: 'Minors', badgeBg: '#fce4e4', badgeColor: '#c62828' },
+            { label: 'Widows', value: widows.length, badge: 'Female', badgeBg: '#f3e5f5', badgeColor: '#6a1b9a' },
           ].map((s) => (
             <div key={s.label} className="stat-card">
               <div className="stat-label">{s.label}</div>
@@ -387,7 +436,8 @@ export default function Home() {
           {[
             { label: 'Under 18', sub: 'Not eligible to vote', count: under18Count, total: totalVisible, color: '#2196f3', bgIcon: '#e3f2fd', icon: '👦', path: '/category/under18', barColor: '#2196f3' },
             { label: 'Adults (18+)', sub: 'Eligible to vote', count: adults.length, total: totalVisible, color: 'var(--green-main)', bgIcon: 'var(--green-pale)', icon: '🧑', path: '/category/adult', barColor: '#1D9E75' },
-            { label: 'Senior Citizens', sub: '60+ years', count: seniors.length, total: totalVisible, color: '#ff9800', bgIcon: '#fff3e0', icon: '👴', path: '/category/senior', barColor: '#ff9800' },
+            { label: 'Senior Citizens', sub: '60+ years (incl. widows)', count: seniors.length, total: totalVisible, color: '#ff9800', bgIcon: '#fff3e0', icon: '👴', path: '/category/senior', barColor: '#ff9800' },
+            { label: 'Widows', sub: 'Female members', count: widows.length, total: totalVisible, color: '#6a1b9a', bgIcon: '#f3e5f5', icon: '🕊️', path: '/category/widow', barColor: '#9c27b0' },
           ].map((cat) => (
             <div key={cat.path} className="cat-card" onClick={() => router.push(cat.path)}>
               <div className="cat-top">
@@ -430,12 +480,11 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Member Form */}
         {showForm && (
           <MemberForm onSubmit={handleAddMember} onCancel={() => setShowForm(false)} />
         )}
 
-        {/* Members Table */}
+        {/* Table */}
         <div className="table-card">
           <div className="table-head">
             <div>
@@ -482,8 +531,16 @@ export default function Home() {
                       <td style={{ color: 'var(--gray-text)', fontSize: '0.8rem' }}>{member.cnic || member.b_form || '-'}</td>
                       <td>{member.phone || '-'}</td>
                       <td>
-                        <span className={`pill ${member.category === 'under18' ? 'pill-blue' : member.category === 'senior' ? 'pill-amber' : 'pill-green'}`}>
-                          {member.category === 'under18' ? '👦 Under 18' : member.category === 'senior' ? '👴 Senior' : '🧑 Adult'}
+                        <span className={`pill ${
+                          member.category === 'under18' ? 'pill-blue' :
+                          member.category === 'senior' ? 'pill-amber' :
+                          member.category === 'widow' ? 'pill-purple' :
+                          'pill-green'
+                        }`}>
+                          {member.category === 'under18' ? '👦 Under 18' :
+                           member.category === 'senior' ? '👴 Senior' :
+                           member.category === 'widow' ? '🕊️ Widow' :
+                           '🧑 Adult'}
                         </span>
                       </td>
                       <td>
