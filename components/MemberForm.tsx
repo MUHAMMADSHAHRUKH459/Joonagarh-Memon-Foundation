@@ -34,6 +34,7 @@ interface MemberFormData {
   husbandName: string;
   husbandCnic: string;
   husbandDob: string;
+  husbandDeathDate: string;
   children: Child[];
 }
 
@@ -44,10 +45,10 @@ interface MemberFormProps {
 
 const inputStyle = {
   width: '100%',
-  padding: '10px 14px',
+  padding: '9px 12px',
   border: '1.5px solid var(--green-border)',
   borderRadius: 'var(--radius)',
-  fontSize: '0.95rem',
+  fontSize: '0.9rem',
   outline: 'none',
   backgroundColor: 'var(--white)',
   color: 'var(--text-dark)',
@@ -55,7 +56,7 @@ const inputStyle = {
 };
 
 const labelStyle = {
-  fontSize: '0.85rem',
+  fontSize: '0.82rem',
   fontWeight: '600' as const,
   color: 'var(--green-dark)',
   marginBottom: '4px',
@@ -89,6 +90,7 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
     husbandName: '',
     husbandCnic: '',
     husbandDob: '',
+    husbandDeathDate: '',
   });
 
   const [wives, setWives] = useState<Wife[]>([{ name: '', cnic: '', dob: '' }]);
@@ -141,19 +143,20 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
   return (
     <div style={{
       position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)',
-      zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem',
+      zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 'clamp(0.5rem, 3vw, 1rem)',
     }}>
       <style>{`
         .member-form-grid {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 1rem;
+          gap: 0.85rem;
           margin-bottom: 1rem;
         }
         .spouse-grid {
           display: grid;
-          grid-template-columns: 1fr 1fr 1fr;
-          gap: 1rem;
+          grid-template-columns: 1fr 1fr 1fr 1fr;
+          gap: 0.85rem;
         }
         .wife-card {
           background: var(--white);
@@ -176,27 +179,40 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
           align-items: end;
         }
         .child-age-badge { margin-top: 0.5rem; }
+        .form-title { font-size: 1.2rem; margin-bottom: 1.25rem; }
+
         @media (max-width: 768px) {
           .spouse-grid { grid-template-columns: 1fr 1fr; }
         }
+
         @media (max-width: 600px) {
-          .member-form-grid { grid-template-columns: 1fr; }
-          .spouse-grid { grid-template-columns: 1fr; }
+          .member-form-grid { grid-template-columns: 1fr; gap: 0.65rem; }
+          .spouse-grid { grid-template-columns: 1fr 1fr; }
           .child-row-grid { grid-template-columns: 1fr 1fr; }
           .child-row-grid .child-name   { grid-column: 1 / 3; }
           .child-row-grid .child-dob    { grid-column: 1 / 3; }
           .child-row-grid .child-gender { grid-column: 1 / 2; }
           .child-row-grid .child-bform  { grid-column: 2 / 3; }
           .child-row-grid .child-remove { grid-column: 1 / 3; justify-self: end; }
+          .form-title { font-size: 1.05rem; margin-bottom: 1rem; }
+        }
+
+        @media (max-width: 420px) {
+          .spouse-grid { grid-template-columns: 1fr; }
         }
       `}</style>
 
       <div style={{
-        backgroundColor: 'var(--white)', borderRadius: 'var(--radius)', padding: '2rem',
-        width: '100%', maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto',
+        backgroundColor: 'var(--white)',
+        borderRadius: 'var(--radius)',
+        padding: 'clamp(1rem, 4vw, 2rem)',
+        width: '100%',
+        maxWidth: '700px',
+        maxHeight: '92vh',
+        overflowY: 'auto',
         boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
       }}>
-        <h2 style={{ marginBottom: '1.5rem', fontSize: '1.4rem' }}>➕ Add New Member</h2>
+        <h2 className="form-title">➕ Add New Member</h2>
 
         {/* Age Preview */}
         {form.dateOfBirth && (
@@ -405,7 +421,7 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
                         </div>
                         <div>
                           <label style={{ ...labelStyle, fontSize: '0.78rem' }}>
-                            {isWidow ? 'Late Husband\'s DOB' : 'Husband\'s Date of Birth'}
+                            {isWidow ? 'Husband\'s Date of Birth' : 'Husband\'s Date of Birth'}
                           </label>
                           <input
                             style={inputStyle}
@@ -415,6 +431,20 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
                             onChange={handleChange}
                           />
                         </div>
+                        {isWidow && (
+                          <div>
+                            <label style={{ ...labelStyle, fontSize: '0.78rem', color: '#c62828' }}>
+                              ☠️ Date of Death
+                            </label>
+                            <input
+                              style={{ ...inputStyle, border: '1.5px solid #ef9a9a' }}
+                              name="husbandDeathDate"
+                              type="date"
+                              value={form.husbandDeathDate}
+                              onChange={handleChange}
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
