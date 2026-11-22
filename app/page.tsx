@@ -38,7 +38,9 @@ interface MemberFormData {
   husbandName?: string;
   husbandCnic?: string;
   husbandDob?: string;
+  husbandDeathDate?: string;
   children: ChildData[];
+  photoFile?: File | null;
 }
 
 interface MemberRow {
@@ -60,12 +62,14 @@ interface MemberRow {
   husband_name: string | null;
   husband_cnic: string | null;
   husband_dob: string | null;
+  husband_death_date: string | null;
   children: ChildData[];
   category: string;
   voting_eligible: boolean;
   entry_date: string;
   fees_paid: Record<string, unknown>;
   is_child: boolean;
+  photo_url: string | null;
   created_at: string;
 }
 
@@ -77,13 +81,6 @@ const getAgeFromDob = (dob: string): number => {
   const m = today.getMonth() - birth.getMonth();
   if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
   return age;
-};
-
-// ✅ Child ki age ke hisaab se category decide karo
-const getChildCategory = (age: number): string => {
-  if (age < 18) return 'under18';
-  if (age >= 60) return 'senior';
-  return 'adult';
 };
 
 // ✅ Widow category decide karo — age bhi consider karo
@@ -180,6 +177,16 @@ export default function Home() {
       : 0;
     const newId = `MEM-${String(lastNum + 1).padStart(3, '0')}`;
 
+    // ✅ Photo upload (lazmi)
+    if (!member.photoFile) { alert('Photo zaroori hai.'); return; }
+    const ext = member.photoFile.name.split('.').pop() || 'jpg';
+    const photoName = `${newId}.${ext}`;
+    const { error: photoError } = await supabase.storage
+      .from('member-photos')
+      .upload(photoName, member.photoFile, { upsert: true });
+    if (photoError) { alert('Photo upload failed. Please try again.'); return; }
+    const photoUrl = supabase.storage.from('member-photos').getPublicUrl(photoName).data.publicUrl;
+
     const newMember = {
       id: newId,
       name: member.name,
@@ -195,15 +202,19 @@ export default function Home() {
       address: member.address || null,
       occupation: member.occupation || null,
       marital_status: member.maritalStatus,
+      // ✅ wives array save karo (male married)
       wives: member.wives || [],
+      // ✅ husband fields save karo (female married/widow)
       husband_name: member.husbandName || null,
       husband_cnic: member.husbandCnic || null,
       husband_dob: member.husbandDob || null,
+      husband_death_date: member.husbandDeathDate || null,
       children: member.children || [],
       category: finalCategory,
       voting_eligible: isVotingEligible(age),
       entry_date: formatDate(new Date()),
       fees_paid: {},
+      photo_url: photoUrl,
     };
 
     const { error } = await supabase.from('members').insert([newMember]);
@@ -214,59 +225,36 @@ export default function Home() {
       type: 'new_member',
     }]);
 
-    // ✅ FIX: Married ya Widow dono ke children save karo — sirf under18 nahi, SARE valid children
+    // Auto add children under 18
     const hasChildren = (member.maritalStatus === 'Married' || member.maritalStatus === 'Widow')
       && member.children && member.children.length > 0;
 
     if (hasChildren) {
-      // ✅ FIX: Sirf under18 filter nahi — dob wale SARE children lo
-      const validChildren = member.children.filter((c: ChildData) => c.dob !== '' && c.name !== '');
+      const childrenUnder18 = member.children.filter((c: ChildData) => {
+        const childAge = getAgeFromDob(c.dob);
+        return c.dob !== '' && childAge < 18;
+      });
 
-      for (let i = 0; i < validChildren.length; i++) {
-        const child = validChildren[i];
+      for (let i = 0; i < childrenUnder18.length; i++) {
+        const child = childrenUnder18[i];
         const childId = `MEM-${String(lastNum + 2 + i).padStart(3, '0')}`;
         const childAge = getAgeFromDob(child.dob);
 
-        // ✅ FIX: Child ki age ke hisaab se sahi category aur voting eligibility set karo
-        const childCategory = getChildCategory(childAge);
-        const childVotingEligible = childAge >= 18;
-
-        // ✅ FIX: Widow ka child ho to father_name = husband ka naam, warna member ka naam
-        const childFatherName = member.gender === 'Female'
-          ? (member.husbandName || member.name)
-          : member.name;
-
         const childMember = {
-          id: childId,
-          name: child.name,
-          father_name: childFatherName,
-          member_cast: member.cast,
-          date_of_birth: child.dob,
-          age: childAge,
-          gender: child.gender,
-          cnic: null,
-          b_form: child.bForm || null,
-          phone: null,
-          email: null,
-          address: member.address || null,
-          occupation: null,
-          marital_status: 'Unmarried',
-          wives: [],
-          husband_name: null,
-          husband_cnic: null,
-          husband_dob: null,
-          children: [],
-          category: childCategory,           // ✅ under18 / adult / senior — age ke hisaab se
-          voting_eligible: childVotingEligible, // ✅ 18+ ho to eligible
-          entry_date: formatDate(new Date()),
-          fees_paid: {},
-          is_child: true,
+          id: childId, name: child.name, father_name: member.name,
+          member_cast: member.cast, date_of_birth: child.dob, age: childAge,
+          gender: child.gender, cnic: null, b_form: child.bForm || null,
+          phone: null, email: null, address: member.address || null,
+          occupation: null, marital_status: 'Unmarried',
+          wives: [], husband_name: null, husband_cnic: null, husband_dob: null,
+          children: [], category: 'under18', voting_eligible: false,
+          entry_date: formatDate(new Date()), fees_paid: {}, is_child: true,
         };
 
         const { error: childError } = await supabase.from('members').insert([childMember]);
         if (!childError) {
           await supabase.from('notifications').insert([{
-            message: `👦 Child auto-added: ${child.name} (${childId}) - Parent: ${member.name} - Category: ${childCategory}`,
+            message: `👦 Child auto-added: ${child.name} (${childId}) - Mother/Father: ${member.name}`,
             type: 'new_member',
           }]);
         }
@@ -525,6 +513,11 @@ export default function Home() {
                       <td>
                         <div className="member-name">{member.name}</div>
                         <div className="member-id">{member.id}</div>
+                        {!member.photo_url && (
+                          <span style={{ display: 'inline-block', marginTop: 3, padding: '1px 7px', borderRadius: 10, fontSize: '0.68rem', fontWeight: 600, backgroundColor: '#fff3e0', color: '#e65100' }}>
+                            📷 No Photo
+                          </span>
+                        )}
                       </td>
                       <td style={{ color: 'var(--gray-text)' }}>{member.father_name} · {member.member_cast}</td>
                       <td>{member.age}</td>

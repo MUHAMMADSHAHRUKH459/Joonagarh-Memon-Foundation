@@ -36,6 +36,7 @@ interface MemberFormData {
   husbandDob: string;
   husbandDeathDate: string;
   children: Child[];
+  photoFile: File | null;
 }
 
 interface MemberFormProps {
@@ -95,6 +96,9 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
 
   const [wives, setWives] = useState<Wife[]>([{ name: '', cnic: '', dob: '' }]);
   const [children, setChildren] = useState<Child[]>([]);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState('');
 
   const age = getAgeFromDob(form.dateOfBirth);
   const isUnder18 = age < 18 && age > 0;
@@ -135,9 +139,31 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
   };
   const removeChild = (index: number) => setChildren(children.filter((_, i) => i !== index));
 
+  // Photo handler (lazmi)
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setPhotoError('Sirf image file (JPG/PNG) select karein.');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setPhotoError('Photo ka size 2MB se zyada nahi hona chahiye.');
+      return;
+    }
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+    setPhotoError('');
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({ ...form, wives, children });
+    if (!photoFile) {
+      setPhotoError('Photo zaroori hai. Pehle member ki photo upload karein.');
+      return;
+    }
+    onSubmit({ ...form, wives, children, photoFile });
   };
 
   return (
@@ -230,6 +256,30 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
         )}
 
         <form onSubmit={handleSubmit}>
+          {/* Photo (required) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.1rem', flexWrap: 'wrap' }}>
+            <div style={{
+              width: 78, height: 100, borderRadius: 8, overflow: 'hidden', flexShrink: 0,
+              border: `2px dashed ${photoError ? '#c62828' : 'var(--green-border)'}`,
+              backgroundColor: 'var(--green-pale)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {photoPreview ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={photoPreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <span style={{ fontSize: '1.8rem' }}>🖼️</span>
+              )}
+            </div>
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <label style={labelStyle}>Member Photo *</label>
+              <input type="file" accept="image/*" onChange={handlePhotoChange} style={{ fontSize: '0.85rem', maxWidth: '100%' }} />
+              <p style={{ fontSize: '0.75rem', color: 'var(--gray-text)', margin: '4px 0 0' }}>
+                JPG/PNG, max 2MB. Card par yahi photo lagegi.
+              </p>
+              {photoError && <p style={{ fontSize: '0.8rem', color: '#c62828', fontWeight: 600, margin: '4px 0 0' }}>⚠️ {photoError}</p>}
+            </div>
+          </div>
+
           {/* Basic Info */}
           <div className="member-form-grid">
             <div>
@@ -421,7 +471,7 @@ const MemberForm = ({ onSubmit, onCancel }: MemberFormProps) => {
                         </div>
                         <div>
                           <label style={{ ...labelStyle, fontSize: '0.78rem' }}>
-                            {isWidow ? 'Husband\'s Date of Birth' : 'Husband\'s Date of Birth'}
+                            {isWidow ? 'Late Husband\'s Date of Birth' : 'Husband\'s Date of Birth'}
                           </label>
                           <input
                             style={inputStyle}

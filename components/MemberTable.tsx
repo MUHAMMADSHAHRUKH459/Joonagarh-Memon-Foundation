@@ -17,6 +17,7 @@ interface Member {
   category: string;
   entry_date: string;
   is_child: boolean;
+  photo_url?: string | null;
 }
 
 interface MemberTableProps {
@@ -93,7 +94,13 @@ const MemberTable = ({ members }: MemberTableProps) => {
                 onMouseLeave={e => (e.currentTarget.style.backgroundColor = index % 2 === 0 ? 'var(--white)' : '#f9fdfb')}
               >
                 <td style={{ padding: '12px 16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--green-main)' }}>{member.id}</td>
-                <td style={{ padding: '12px 16px', fontSize: '0.9rem', fontWeight: '500' }}>{member.name}</td>
+                <td style={{ padding: '12px 16px', fontSize: '0.9rem', fontWeight: '500' }}>{member.name}
+                  {!member.photo_url && (
+                    <span style={{ display: 'inline-block', marginLeft: 8, padding: '1px 7px', borderRadius: 10, fontSize: '0.68rem', fontWeight: 600, backgroundColor: '#fff3e0', color: '#e65100' }}>
+                      📷 No Photo
+                    </span>
+                  )}
+                </td>
                 <td style={{ padding: '12px 16px', fontSize: '0.85rem' }}>{member.father_name}</td>
                 <td style={{ padding: '12px 16px', fontSize: '0.85rem' }}>{member.member_cast}</td>
                 <td style={{ padding: '12px 16px', fontSize: '0.9rem' }}>{member.age}</td>

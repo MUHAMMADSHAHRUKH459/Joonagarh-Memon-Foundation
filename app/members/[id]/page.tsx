@@ -4,6 +4,7 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Navbar from '@/components/Navbar';
+import MemberCardModal from '@/components/MemberCard';
 import { supabase } from '@/lib/supabaseClient';
 
 interface Child {
@@ -58,6 +59,7 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [showCard, setShowCard] = useState(false);
 
   useEffect(() => {
     const fetchMember = async () => {
@@ -239,11 +241,41 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
           {!member?.is_child && (
             <button className="profile-btn" onClick={() => router.push(`/fees/${encodeURIComponent(id)}`)} style={{ backgroundColor: '#1565c0', color: 'white' }}>💰 Manage Fees</button>
           )}
+          <button
+            className="profile-btn"
+            onClick={() => setShowCard(true)}
+            disabled={!photoUrl}
+            title={photoUrl ? 'Member card banayein' : 'Pehle member ki photo upload karein'}
+            style={{ backgroundColor: '#1b2a6b', color: 'white', opacity: photoUrl ? 1 : 0.5, cursor: photoUrl ? 'pointer' : 'not-allowed' }}
+          >
+            🪪 Generate Card
+          </button>
           <button className="profile-btn" onClick={() => router.push(`/edit/${encodeURIComponent(id)}`)} style={{ backgroundColor: '#e65100', color: 'white' }}>✏️ Edit Member</button>
           <button className="profile-btn" onClick={handleDelete} disabled={deleting} style={{ backgroundColor: '#c62828', color: 'white' }}>
             {deleting ? '⏳ Deleting...' : '🗑️ Delete Member'}
           </button>
         </div>
+
+        {!loading && member && !photoUrl && (
+          <div style={{ backgroundColor: '#fff3e0', border: '1px solid #ffcc80', color: '#e65100', borderRadius: 'var(--radius)', padding: '10px 14px', marginBottom: '1rem', fontSize: '0.88rem', fontWeight: 600 }}>
+            ⚠️ Card banane ke liye pehle member ki photo upload karein. Neeche profile photo ke 📷 button se photo lagayein.
+          </div>
+        )}
+
+        {showCard && member && photoUrl && (
+          <MemberCardModal
+            member={{
+              id: member.id,
+              name: member.name,
+              father_name: member.father_name,
+              cnic: member.cnic,
+              b_form: member.b_form,
+              phone: member.phone,
+              photo_url: photoUrl,
+            }}
+            onClose={() => setShowCard(false)}
+          />
+        )}
 
         {loading && <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--gray-text)' }}>Loading profile...</div>}
 
