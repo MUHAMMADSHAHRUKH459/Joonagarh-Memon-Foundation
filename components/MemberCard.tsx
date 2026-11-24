@@ -25,7 +25,7 @@ const FONT = "'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', Arial, sans-
 
 /* ───────────────────────── FRONT ───────────────────────── */
 const JAMAT_EMAIL = 'Naliyamandvi786@gmail.com';
-const JAMAT_ADDRESS = 'Plot No.68, Soldier Bazar No.02, Karachi.';
+const JAMAT_ADDRESS = 'Plot No.68, Soldier Bazar No.01, Karachi.';
 
 const PLATE_X = 506;
 const PLATE_W = 432;
